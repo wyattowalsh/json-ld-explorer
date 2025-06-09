@@ -14,17 +14,75 @@ interface DataLoaderProps {
   isLoading: boolean;
 }
 
-const DEFAULT_GIST_URL = 'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld';
+const DEFAULT_URLS = [
+  'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld',
+  'https://raw.githubusercontent.com/schemaorg/schemaorg/main/data/releases/3.1/all-layers.jsonld'
+];
+
+const FALLBACK_DATA = {
+  "@context": "https://schema.org/",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://example.com/person/1",
+      "name": "John Doe",
+      "jobTitle": "Software Engineer",
+      "worksFor": {
+        "@type": "Organization",
+        "@id": "https://example.com/org/1",
+        "name": "Tech Corp",
+        "location": "San Francisco"
+      },
+      "knowsAbout": ["JavaScript", "React", "Node.js"],
+      "alumniOf": {
+        "@type": "EducationalOrganization",
+        "@id": "https://example.com/edu/1",
+        "name": "University of Technology"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://example.com/person/2",
+      "name": "Jane Smith",
+      "jobTitle": "Product Manager",
+      "worksFor": "https://example.com/org/1",
+      "knowsAbout": ["Product Strategy", "UX Design", "Data Analysis"]
+    }
+  ]
+};
 
 export function DataLoader({ onDataLoaded, isLoading }: DataLoaderProps) {
   const [customUrl, setCustomUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const { toast } = useToast();
 
-  const loadData = async (url: string) => {
+  const loadData = async (url?: string) => {
     try {
       setUrlError('');
-      const data = await JSONLDProcessor.loadFromUrl(url);
+      let data;
+      
+      if (url) {
+        // Try loading from specific URL
+        data = await JSONLDProcessor.loadFromUrl(url);
+      } else {
+        // Try default URLs in sequence
+        let lastError;
+        for (const defaultUrl of DEFAULT_URLS) {
+          try {
+            data = await JSONLDProcessor.loadFromUrl(defaultUrl);
+            break;
+          } catch (error) {
+            lastError = error;
+            continue;
+          }
+        }
+        
+        // If all URLs fail, use fallback data
+        if (!data) {
+          console.warn('All default URLs failed, using fallback data:', lastError);
+          data = FALLBACK_DATA;
+        }
+      }
       
       if (!JSONLDProcessor.validateJSONLD(data)) {
         throw new Error('Invalid JSON-LD format');
@@ -47,7 +105,7 @@ export function DataLoader({ onDataLoaded, isLoading }: DataLoaderProps) {
   };
 
   const handleLoadDefault = () => {
-    loadData(DEFAULT_GIST_URL);
+    loadData();
   };
 
   const handleLoadCustom = () => {

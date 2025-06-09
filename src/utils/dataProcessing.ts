@@ -6,10 +6,26 @@ export class JSONLDProcessor {
   private links: GraphLink[];
 
   constructor(data: JSONLDData | JSONLDData[]) {
-    this.data = Array.isArray(data) ? data : [data];
+    // Handle nested array structures and flatten them
+    this.data = this.flattenData(data);
     this.nodeMap = new Map();
     this.links = [];
     this.processData();
+  }
+
+  private flattenData(data: JSONLDData | JSONLDData[]): JSONLDData[] {
+    if (!data) return [];
+    
+    if (Array.isArray(data)) {
+      return data.flatMap(item => this.flattenData(item));
+    }
+    
+    // Check if it's a JSON-LD graph structure
+    if (data['@graph'] && Array.isArray(data['@graph'])) {
+      return this.flattenData(data['@graph']);
+    }
+    
+    return [data];
   }
 
   private processData(): void {
@@ -17,6 +33,17 @@ export class JSONLDProcessor {
   }
 
   private processEntity(entity: JSONLDData, parentId?: string): void {
+    // Handle array of entities at root level
+    if (Array.isArray(entity)) {
+      entity.forEach(item => this.processEntity(item, parentId));
+      return;
+    }
+
+    // Skip non-object entities
+    if (!entity || typeof entity !== 'object') {
+      return;
+    }
+
     const id = entity['@id'] || entity.id || this.generateId();
     const type = entity['@type'] || entity.type || 'Unknown';
     
@@ -70,9 +97,32 @@ export class JSONLDProcessor {
         if (!this.nodeMap.has(targetId)) {
           this.processEntity(value);
         }
-      } else {
+      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+        // Process nested objects as child entities
         this.processEntity(value, sourceId);
       }
+    } else if (typeof value === 'string' && value.startsWith('http')) {
+      // Handle URL references as potential linked entities
+      const targetId = value;
+      if (!this.nodeMap.has(targetId)) {
+        const urlNode: GraphNode = {
+          id: targetId,
+          name: this.extractNameFromUrl(targetId),
+          type: 'Reference',
+          properties: { url: targetId },
+          size: 3,
+          group: this.getTypeGroup('Reference'),
+          color: this.getTypeColor('Reference')
+        };
+        this.nodeMap.set(targetId, urlNode);
+      }
+      
+      this.links.push({
+        source: sourceId,
+        target: targetId,
+        type: relationshipType,
+        weight: 0.5
+      });
     }
   }
 
@@ -80,9 +130,22 @@ export class JSONLDProcessor {
     return entity.name || 
            entity.title || 
            entity.label ||
+           entity['rdfs:label'] ||
+           entity['schema:name'] ||
            entity['@id'] ||
            entity.id ||
            'Unnamed Entity';
+  }
+
+  private extractNameFromUrl(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const segments = pathname.split('/').filter(Boolean);
+      return segments[segments.length - 1] || urlObj.hostname;
+    } catch {
+      return url;
+    }
   }
 
   private calculateNodeSize(entity: JSONLDData): number {
@@ -117,7 +180,8 @@ export class JSONLDProcessor {
       'Product': '#DDA0DD',
       'Service': '#98D8C8',
       'Action': '#F7DC6F',
-      'Thing': '#AED6F1'
+      'Thing': '#AED6F1',
+      'Reference': '#E67E22'
     };
     
     return typeColors[type] || '#95A5A6';
