@@ -1,13 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
   BarChart3, Network, Database, TrendingUp, 
-  Download, Share, RefreshCw, Sparkles
+  Download, Share, RefreshCw, Sparkles, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { DataLoader } from './DataLoader';
 import { StatsPanel } from './StatsPanel';
@@ -24,56 +24,39 @@ export function Dashboard() {
   const [graphAnalytics, setGraphAnalytics] = useState<GraphAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [processingState, setProcessingState] = useState<'idle' | 'processing' | 'complete'>('idle');
+  const [showStats, setShowStats] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const { toast } = useToast();
 
-  // Auto-load default data on component mount
-  useEffect(() => {
-    const loadDefaultData = async () => {
-      if (!data && processingState === 'idle') {
-        try {
-          const defaultData = await JSONLDProcessor.loadFromUrl(
-            'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld'
-          );
-          await processData(defaultData);
-        } catch (error) {
-          console.log('Failed to auto-load default data, showing loader instead');
-        }
-      }
-    };
-    
-    loadDefaultData();
-  }, []);
-
-  const processData = async (jsonldData: JSONLDData | JSONLDData[]) => {
-    setIsLoading(true);
-    setProcessingState('processing');
-    
+  const handleDataLoad = async (loadedData: JSONLDData | JSONLDData[]) => {
     try {
-      // Simulate processing delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const processor = new JSONLDProcessor(jsonldData);
-      const processedGraph = processor.getGraph();
-      const stats = processor.getDataStats();
-      
-      const analyticsEngine = new GraphAnalyticsEngine(processedGraph);
-      const analytics = analyticsEngine.calculateAnalytics();
-      
-      setData(jsonldData);
+      setIsLoading(true);
+      setProcessingState('processing');
+      setData(loadedData);
+
+      // Process the data
+      const processor = new JSONLDProcessor();
+      const processedGraph = processor.processJSONLD(loadedData);
+      const stats = processor.generateDataStats(loadedData);
+
+      // Generate analytics
+      const analyticsEngine = new GraphAnalyticsEngine();
+      const analytics = analyticsEngine.analyzeGraph(processedGraph);
+
       setGraph(processedGraph);
       setDataStats(stats);
       setGraphAnalytics(analytics);
       setProcessingState('complete');
-      
+
       toast({
-        title: "Data processed successfully",
-        description: `Generated graph with ${processedGraph.nodes.length} nodes and ${processedGraph.links.length} connections`,
+        title: "Data processed successfully!",
+        description: `Generated graph with ${processedGraph.nodes.length} nodes and ${processedGraph.links.length} links.`,
       });
     } catch (error) {
       console.error('Error processing data:', error);
       toast({
-        title: "Processing error",
-        description: "Failed to process the JSON-LD data",
+        title: "Processing failed",
+        description: "There was an error processing your JSON-LD data.",
         variant: "destructive",
       });
       setProcessingState('idle');
@@ -82,184 +65,120 @@ export function Dashboard() {
     }
   };
 
-  const handleExport = () => {
-    if (!graph || !dataStats || !graphAnalytics) return;
-    
-    const exportData = {
-      timestamp: new Date().toISOString(),
-      graph,
-      dataStats,
-      graphAnalytics,
-      metadata: {
-        nodeCount: graph.nodes.length,
-        linkCount: graph.links.length,
-        density: graphAnalytics.density,
-        clustering: graphAnalytics.clustering
-      }
-    };
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
-      type: 'application/json' 
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `jsonld-analysis-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Export successful",
-      description: "Analysis data has been downloaded",
-    });
-  };
-
-  const handleReset = () => {
-    setData(null);
-    setGraph(null);
-    setDataStats(null);
-    setGraphAnalytics(null);
-    setProcessingState('idle');
-    
-    toast({
-      title: "Data cleared",
-      description: "Ready to load new data",
-    });
-  };
-
-  if (!data) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-950 dark:via-blue-950 dark:to-purple-950">
-        <div className="container mx-auto px-4 py-8">
-          <DataLoader onDataLoaded={processData} isLoading={isLoading} />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-950 dark:via-blue-950 dark:to-purple-950">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
+      <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
+          className="text-center space-y-4"
         >
-          <div className="flex items-center gap-4">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center gap-3"
-            >
-              <Database className="w-8 h-8 text-primary" />
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                  JSON-LD Explorer
-                </h1>
-                <p className="text-muted-foreground">
-                  Advanced data analytics and visualization
-                </p>
-              </div>
-            </motion.div>
-            <AnimatePresence>
-              {processingState === 'complete' && (
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                >
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    Analysis Complete
-                  </Badge>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div className="flex items-center justify-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+              <Network className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              JSON-LD Graph Explorer
+            </h1>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleExport} disabled={!graph}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              <Share className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-            <Button variant="destructive" onClick={handleReset}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
-          </div>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Visualize and explore your linked data with advanced graph algorithms and interactive controls
+          </p>
         </motion.div>
 
-        {/* Processing State */}
-        <AnimatePresence>
-          {processingState === 'processing' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="mb-8"
-            >
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-center space-x-4">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full"
-                    />
-                    <div>
-                      <p className="font-medium">Processing JSON-LD data...</p>
-                      <p className="text-sm text-muted-foreground">
-                        Analyzing structure, calculating graph metrics, and preparing visualizations
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Data Loader */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <DataLoader 
+            onDataLoad={handleDataLoad} 
+            isLoading={isLoading}
+            processingState={processingState}
+          />
+        </motion.div>
 
-        {/* Main Content */}
+        {/* Main Visualization Area */}
         <AnimatePresence>
           {graph && dataStats && graphAnalytics && processingState === 'complete' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
+              className="space-y-6"
             >
-              <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="overview" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger value="visualization" className="flex items-center gap-2">
-                    <Network className="w-4 h-4" />
-                    Visualization
-                  </TabsTrigger>
-                  <TabsTrigger value="analytics" className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Analytics
-                  </TabsTrigger>
-                </TabsList>
+              {/* Quick Stats Bar */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <Network className="w-5 h-5 text-blue-600" />
+                        <span className="font-semibold">{graph.nodes.length} Nodes</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Share className="w-5 h-5 text-indigo-600" />
+                        <span className="font-semibold">{graph.links.length} Links</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Database className="w-5 h-5 text-purple-600" />
+                        <span className="font-semibold">{Object.keys(dataStats.entityTypes).length} Types</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-green-600" />
+                        <span className="font-semibold">Density: {(graphAnalytics.density * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowStats(!showStats)}
+                        className="bg-white/80"
+                      >
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Stats
+                        {showStats ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAnalytics(!showAnalytics)}
+                        className="bg-white/80"
+                      >
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                        Analytics
+                        {showAnalytics ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <TabsContent value="overview" className="space-y-6">
-                  <StatsPanel dataStats={dataStats} graphAnalytics={graphAnalytics} />
-                </TabsContent>
-
-                <TabsContent value="visualization" className="space-y-6">
-                  <GraphVisualization graph={graph} />
-                </TabsContent>
-
-                <TabsContent value="analytics" className="space-y-6">
+              {/* Expandable Stats Panel */}
+              <AnimatePresence>
+                {showStats && (
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.1 }}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <StatsPanel dataStats={dataStats} graphAnalytics={graphAnalytics} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Expandable Analytics Panel */}
+              <AnimatePresence>
+                {showAnalytics && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
                   >
                     <Card>
                       <CardHeader>
@@ -308,11 +227,83 @@ export function Dashboard() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                </TabsContent>
-              </Tabs>
+                )}
+              </AnimatePresence>
+
+              {/* Main Graph Visualization - Full Width and Prominent */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="relative"
+              >
+                <GraphVisualization graph={graph} />
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Loading State */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
+            >
+              <Card className="w-96">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <RefreshCw className="w-6 h-6 text-blue-600" />
+                    </motion.div>
+                    <div>
+                      <h3 className="font-semibold">Processing Data...</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {processingState === 'processing' 
+                          ? 'Analyzing your JSON-LD data and building the graph...'
+                          : 'Loading...'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Welcome State */}
+        {!data && processingState === 'idle' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center py-16"
+          >
+            <div className="space-y-6">
+              <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl">
+                <Sparkles className="w-12 h-12 text-white" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-muted-foreground">Ready to Explore</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Upload your JSON-LD data above to start visualizing your linked data graph with advanced analytics and interactive controls.
+                </p>
+              </div>
+              <div className="flex justify-center gap-4 text-sm text-muted-foreground">
+                <Badge variant="outline">Multiple Layout Algorithms</Badge>
+                <Badge variant="outline">3D Visualization</Badge>
+                <Badge variant="outline">Advanced Analytics</Badge>
+                <Badge variant="outline">Interactive Navigation</Badge>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
