@@ -1,0 +1,34 @@
+22:26:24.504 DataLoader.tsx:161 handleLoadDefault called
+22:26:24.504 DataLoader.tsx:88 Loading default data from: ['https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld']
+22:26:24.504 DataLoader.tsx:93 Attempting to load from: https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld
+22:26:24.504 dataProcessing.ts:460 Fetching data from: https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld
+22:26:24.836 dataProcessing.ts:477 Successfully loaded data directly: {@context: {…}, @graph: Array(135)}
+22:26:24.836 DataLoader.tsx:95 Successfully loaded data from: https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld
+22:26:24.836 DataLoader.tsx:116 Validating loaded data: {@context: {…}, @graph: Array(135)}
+22:26:24.836 DataLoader.tsx:121 Calling onDataLoaded with: {@context: {…}, @graph: Array(135)}
+22:26:24.851 Dashboard.tsx:56 Error processing data: TypeError: Cannot read properties of undefined (reading 'nodes')
+    at GraphAnalyticsEngine.buildAdjacencyList (graphAnalytics.ts:16:16)
+    at new GraphAnalyticsEngine (graphAnalytics.ts:12:10)
+    at handleDataLoad (Dashboard.tsx:43:31)
+    at loadData (DataLoader.tsx:122:7)
+    at async handleLoadDefault (DataLoader.tsx:162:5)
+overrideMethod @ hook.js:608
+handleDataLoad @ Dashboard.tsx:56
+loadData @ DataLoader.tsx:122
+await in loadData
+handleLoadDefault @ DataLoader.tsx:162
+callCallback2 @ chunk-6BKLQ22S.js?v=e13f0869:3674
+invokeGuardedCallbackDev @ chunk-6BKLQ22S.js?v=e13f0869:3699
+invokeGuardedCallback @ chunk-6BKLQ22S.js?v=e13f0869:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-6BKLQ22S.js?v=e13f0869:3736
+executeDispatch @ chunk-6BKLQ22S.js?v=e13f0869:7014
+processDispatchQueueItemsInOrder @ chunk-6BKLQ22S.js?v=e13f0869:7034
+processDispatchQueue @ chunk-6BKLQ22S.js?v=e13f0869:7043
+dispatchEventsForPlugins @ chunk-6BKLQ22S.js?v=e13f0869:7051
+(anonymous) @ chunk-6BKLQ22S.js?v=e13f0869:7174
+batchedUpdates$1 @ chunk-6BKLQ22S.js?v=e13f0869:18913
+batchedUpdates @ chunk-6BKLQ22S.js?v=e13f0869:3579
+dispatchEventForPluginEventSystem @ chunk-6BKLQ22S.js?v=e13f0869:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-6BKLQ22S.js?v=e13f0869:5478
+dispatchEvent @ chunk-6BKLQ22S.js?v=e13f0869:5472
+dispatchDiscreteEvent @ chunk-6BKLQ22S.js?v=e13f0869:5449
