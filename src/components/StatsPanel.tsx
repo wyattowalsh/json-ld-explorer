@@ -23,45 +23,38 @@ interface StatsPanelProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0'];
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
-          <p className="font-medium">{`${label}`}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }}>
-              {`${entry.dataKey}: ${entry.value}`}
-              {entry.payload.percentage && ` (${entry.payload.percentage}%)`}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
+        <p className="font-medium">{`${label}`}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} style={{ color: entry.color }}>
+            {`${entry.dataKey}: ${entry.value}`}
+            {entry.payload.percentage && ` (${entry.payload.percentage}%)`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
-  const exportChart = (chartId: string) => {
-    const element = document.getElementById(chartId);
-    if (element) {
-      const svg = element.querySelector('svg');
-      if (svg) {
-        const serializer = new XMLSerializer();
-        const source = serializer.serializeToString(svg);
-        const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${chartId}-${Date.now()}.svg`;
-        link.click();
-      }
+const exportChart = (chartId: string) => {
+  const element = document.getElementById(chartId);
+  if (element) {
+    const svg = element.querySelector('svg');
+    if (svg) {
+      const serializer = new XMLSerializer();
+      const source = serializer.serializeToString(svg);
+      const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${chartId}-${Date.now()}.svg`;
+      link.click();
     }
-  };
-
-  const toggleChartType = (chartKey: string, newType: string) => {
-    setActiveChartType(prev => ({
-      ...prev,
-      [chartKey]: newType
-    }));
-  };
+  }
+};
 
 export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
   const [fullscreenChart, setFullscreenChart] = useState<string | null>(null);
@@ -70,6 +63,13 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
     centrality: 'bar',
     relationships: 'bar'
   });
+
+  const toggleChartType = (chartKey: string, newType: string) => {
+    setActiveChartType(prev => ({
+      ...prev,
+      [chartKey]: newType
+    }));
+  };
 
   const entityTypeData = Object.entries(dataStats.entityTypes).map(([type, count]) => ({
     name: type,
