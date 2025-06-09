@@ -31,7 +31,13 @@ const VISUALIZATION_MODES: VisualizationMode[] = [
   { id: 'force2d', name: 'Force Layout 2D', description: 'Interactive force-directed graph', dimension: '2D', type: 'force' },
   { id: 'force3d', name: 'Force Layout 3D', description: 'Three-dimensional force graph', dimension: '3D', type: 'force' },
   { id: 'circular', name: 'Circular Layout', description: 'Nodes arranged in circles by type', dimension: '2D', type: 'circular' },
-  { id: 'hierarchy', name: 'Hierarchical Layout', description: 'Tree-like hierarchical structure', dimension: '2D', type: 'hierarchy' }
+  { id: 'hierarchy', name: 'Hierarchical Layout', description: 'Tree-like hierarchical structure', dimension: '2D', type: 'hierarchy' },
+  { id: 'radial', name: 'Radial Layout', description: 'Radial tree layout from center', dimension: '2D', type: 'radial' },
+  { id: 'grid', name: 'Grid Layout', description: 'Organized grid-based positioning', dimension: '2D', type: 'grid' },
+  { id: 'spiral', name: 'Spiral Layout', description: 'Spiral arrangement by connectivity', dimension: '2D', type: 'spiral' },
+  { id: 'cluster', name: 'Cluster Layout', description: 'Community-based clustering', dimension: '2D', type: 'cluster' },
+  { id: 'arc', name: 'Arc Diagram', description: 'Linear nodes with arc connections', dimension: '2D', type: 'arc' },
+  { id: 'matrix', name: 'Matrix View', description: 'Adjacency matrix representation', dimension: '2D', type: 'matrix' }
 ];
 
 export function GraphVisualization({ graph }: GraphVisualizationProps) {
@@ -55,14 +61,21 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const [cameraControl, setCameraControl] = useState<'trackball' | 'orbit' | 'fly'>('trackball');
+  const [isMobile, setIsMobile] = useState(false);
+  const [touchStartTime, setTouchStartTime] = useState(0);
+  const [lastTap, setLastTap] = useState(0);
 
   useEffect(() => {
     const updateDimensions = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
+        const mobileHeight = mobile ? Math.min(window.innerHeight * 0.6, 500) : 600;
         setDimensions({
           width: isFullscreen ? window.innerWidth - 40 : rect.width - 40,
-          height: isFullscreen ? window.innerHeight - 140 : 600
+          height: isFullscreen ? window.innerHeight - 140 : mobileHeight
         });
       }
     };
@@ -219,6 +232,8 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   };
 
   const processedGraph = useMemo(() => {
+    const baseSize = (isMobile ? 6 : 8);
+    
     if (currentMode.type === 'circular') {
       const nodesByType = graph.nodes.reduce((acc, node) => {
         const type = node.type || 'Unknown';
@@ -232,13 +247,13 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
         const typeNodes = nodesByType[type];
         const typeIndex = typeNodes.findIndex(n => n.id === node.id);
         const typeAngle = (typeIndex / typeNodes.length) * 2 * Math.PI;
-        const typeRadius = Object.keys(nodesByType).indexOf(type) * 100 + 50;
+        const typeRadius = Object.keys(nodesByType).indexOf(type) * (isMobile ? 80 : 100) + 50;
 
         return {
           ...node,
           fx: Math.cos(typeAngle) * typeRadius,
           fy: Math.sin(typeAngle) * typeRadius,
-          size: (node.size || 5) * nodeSize[0] / 8
+          size: (node.size || 5) * nodeSize[0] / baseSize
         };
       });
 
@@ -246,7 +261,6 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
     }
 
     if (currentMode.type === 'hierarchy') {
-      // Simple hierarchy based on node degree
       const degrees = graph.nodes.map(node => ({
         ...node,
         degree: graph.links.filter(link => 
@@ -257,8 +271,122 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
 
       const processedNodes = degrees.map((node, index) => ({
         ...node,
-        fy: node.degree * -30, // Higher degree nodes go up
-        size: (node.size || 5) * nodeSize[0] / 8
+        fy: node.degree * (isMobile ? -20 : -30),
+        size: (node.size || 5) * nodeSize[0] / baseSize
+      }));
+
+      return { nodes: processedNodes, links: graph.links };
+    }
+
+    if (currentMode.type === 'radial') {
+      // Find central node (highest degree)
+      const degrees = graph.nodes.map(node => {
+        const degree = graph.links.filter(link => 
+          (typeof link.source === 'string' ? link.source : link.source.id) === node.id ||
+          (typeof link.target === 'string' ? link.target : link.target.id) === node.id
+        ).length;
+        return { ...node, degree };
+      });
+
+      const centralNode = degrees.reduce((max, node) => node.degree > max.degree ? node : max);
+      const processedNodes = degrees.map((node, index) => {
+        if (node.id === centralNode.id) {
+          return { ...node, fx: 0, fy: 0, size: (node.size || 5) * nodeSize[0] / baseSize };
+        }
+        
+        const angle = (index / graph.nodes.length) * 2 * Math.PI;
+        const radius = node.degree === 0 ? (isMobile ? 120 : 150) : (isMobile ? 80 : 100);
+        
+        return {
+          ...node,
+          fx: Math.cos(angle) * radius,
+          fy: Math.sin(angle) * radius,
+          size: (node.size || 5) * nodeSize[0] / baseSize
+        };
+      });
+
+      return { nodes: processedNodes, links: graph.links };
+    }
+
+    if (currentMode.type === 'grid') {
+      const gridSize = Math.ceil(Math.sqrt(graph.nodes.length));
+      const spacing = isMobile ? 60 : 80;
+      
+      const processedNodes = graph.nodes.map((node, index) => {
+        const row = Math.floor(index / gridSize);
+        const col = index % gridSize;
+        
+        return {
+          ...node,
+          fx: (col - gridSize / 2) * spacing,
+          fy: (row - gridSize / 2) * spacing,
+          size: (node.size || 5) * nodeSize[0] / baseSize
+        };
+      });
+
+      return { nodes: processedNodes, links: graph.links };
+    }
+
+    if (currentMode.type === 'spiral') {
+      const processedNodes = graph.nodes.map((node, index) => {
+        const angle = index * 0.5;
+        const radius = Math.sqrt(index) * (isMobile ? 8 : 10);
+        
+        return {
+          ...node,
+          fx: Math.cos(angle) * radius,
+          fy: Math.sin(angle) * radius,
+          size: (node.size || 5) * nodeSize[0] / baseSize
+        };
+      });
+
+      return { nodes: processedNodes, links: graph.links };
+    }
+
+    if (currentMode.type === 'cluster') {
+      // Simple clustering by type
+      const nodesByType = graph.nodes.reduce((acc, node) => {
+        const type = node.type || 'Unknown';
+        if (!acc[type]) acc[type] = [];
+        acc[type].push(node);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const types = Object.keys(nodesByType);
+      const processedNodes = graph.nodes.map((node) => {
+        const type = node.type || 'Unknown';
+        const typeIndex = types.indexOf(type);
+        const typeNodes = nodesByType[type];
+        const nodeIndex = typeNodes.findIndex(n => n.id === node.id);
+        
+        const clusterAngle = (typeIndex / types.length) * 2 * Math.PI;
+        const clusterRadius = isMobile ? 100 : 150;
+        const nodeAngle = (nodeIndex / typeNodes.length) * 2 * Math.PI;
+        const nodeRadius = isMobile ? 30 : 40;
+        
+        const clusterX = Math.cos(clusterAngle) * clusterRadius;
+        const clusterY = Math.sin(clusterAngle) * clusterRadius;
+        const nodeX = Math.cos(nodeAngle) * nodeRadius;
+        const nodeY = Math.sin(nodeAngle) * nodeRadius;
+        
+        return {
+          ...node,
+          fx: clusterX + nodeX,
+          fy: clusterY + nodeY,
+          size: (node.size || 5) * nodeSize[0] / baseSize
+        };
+      });
+
+      return { nodes: processedNodes, links: graph.links };
+    }
+
+    if (currentMode.type === 'arc') {
+      const spacing = isMobile ? 40 : 60;
+      const processedNodes = graph.nodes.map((node, index) => ({
+        ...node,
+        fx: (index - graph.nodes.length / 2) * spacing,
+        fy: 0,
+        size: (node.size || 5) * nodeSize[0] / baseSize
       }));
 
       return { nodes: processedNodes, links: graph.links };
@@ -267,11 +395,11 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
     return {
       nodes: graph.nodes.map(node => ({
         ...node,
-        size: (node.size || 5) * nodeSize[0] / 8
+        size: (node.size || 5) * nodeSize[0] / baseSize
       })),
       links: graph.links
     };
-  }, [graph, currentMode, nodeSize]);
+  }, [graph, currentMode, nodeSize, isMobile]);
 
   const handleNodeHover = useCallback((node: any) => {
     if (!node) {
@@ -303,8 +431,29 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   }, [graph.links]);
 
   const handleNodeClick = useCallback((node: any) => {
-    setSelectedNode(node);
-  }, []);
+    if (isMobile) {
+      // Handle double tap for mobile
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+      
+      if (now - lastTap < DOUBLE_TAP_DELAY) {
+        // Double tap - center on node
+        centerOnNode(node);
+      } else {
+        // Single tap - show details
+        setSelectedNode(node);
+      }
+      setLastTap(now);
+    } else {
+      setSelectedNode(node);
+    }
+  }, [isMobile, lastTap]);
+
+  const handleNodeRightClick = useCallback((node: any) => {
+    if (!isMobile) {
+      centerOnNode(node);
+    }
+  }, [isMobile]);
 
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
     const size = node.size || 5;
@@ -376,13 +525,13 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
       return (
         <ForceGraph3D
           {...commonProps}
-
           linkOpacity={linkOpacity[0]}
           showNavInfo={false}
-          controlType={cameraControl === 'pan' ? 'trackball' : cameraControl}
-          enableNavigationControls={true}
+          controlType={isMobile ? 'trackball' : (cameraControl === 'pan' ? 'trackball' : cameraControl)}
+          enableNavigationControls={!isMobile}
           enablePointerInteraction={true}
-          onNodeRightClick={(node) => centerOnNode(node)}
+          onNodeRightClick={handleNodeRightClick}
+          nodeThreeObjectExtend={true}
         />
       );
     }
@@ -392,14 +541,16 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
         {...commonProps}
         nodeCanvasObject={nodeCanvasObject}
         linkCanvasObject={linkCanvasObject}
-        cooldownTicks={100}
+        cooldownTicks={isMobile ? 50 : 100}
         onEngineStop={() => setHighlightNodes(new Set())}
-        enableNodeDrag={true}
+        enableNodeDrag={!isMobile}
         enablePanInteraction={true}
         enableZoomInteraction={true}
         zoom={zoom}
         centerAt={[panOffset.x, panOffset.y]}
-        onNodeRightClick={(node) => centerOnNode(node)}
+        onNodeRightClick={handleNodeRightClick}
+        minZoom={isMobile ? 0.5 : 0.1}
+        maxZoom={isMobile ? 4 : 8}
       />
     );
   };
@@ -466,7 +617,39 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 lg:flex lg:flex-wrap gap-2 mb-4">
+            {/* Mobile Mode Selection */}
+            <div className="block md:hidden mb-4">
+              <Select value={currentMode.id} onValueChange={(value) => {
+                const mode = VISUALIZATION_MODES.find(m => m.id === value);
+                if (mode) setCurrentMode(mode);
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {currentMode.dimension}
+                      </Badge>
+                      <span className="text-sm">{currentMode.name}</span>
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {VISUALIZATION_MODES.map((mode) => (
+                    <SelectItem key={mode.id} value={mode.id}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {mode.dimension}
+                        </Badge>
+                        <span>{mode.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Desktop Mode Selection */}
+            <div className="hidden md:grid md:grid-cols-3 lg:flex lg:flex-wrap gap-2 mb-4">
               {VISUALIZATION_MODES.map((mode) => (
                 <Button
                   key={mode.id}
@@ -478,8 +661,8 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                   <Badge variant="secondary" className="text-xs px-1 py-0.5">
                     {mode.dimension}
                   </Badge>
-                  <span className="hidden sm:inline">{mode.name}</span>
-                  <span className="sm:hidden">{mode.name.split(' ')[0]}</span>
+                  <span className="hidden lg:inline">{mode.name}</span>
+                  <span className="lg:hidden">{mode.name.split(' ')[0]}</span>
                 </Button>
               ))}
             </div>
@@ -738,12 +921,23 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
 
             <div className="mt-4 text-sm text-muted-foreground">
               <p>{currentMode.description}</p>
-              <div className="flex items-center gap-4 mt-2 flex-wrap">
-                <span>💡 Hover over nodes to highlight connections</span>
-                <span>🖱️ Click nodes for details | Right-click to center</span>
-                <span>⌨️ Press H for navigation help</span>
-                <span>🎮 WASD to move | Arrow keys to rotate</span>
-                <span>🔄 Mode: {navigationMode}</span>
+              <div className="flex items-center gap-2 sm:gap-4 mt-2 flex-wrap text-xs sm:text-sm">
+                {isMobile ? (
+                  <>
+                    <span>👆 Tap nodes for details</span>
+                    <span>👆👆 Double-tap to center</span>
+                    <span>🤏 Pinch to zoom</span>
+                    <span>👋 Drag to pan</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💡 Hover over nodes to highlight connections</span>
+                    <span>🖱️ Click nodes for details | Right-click to center</span>
+                    <span>⌨️ Press H for navigation help</span>
+                    <span>🎮 WASD to move | Arrow keys to rotate</span>
+                    <span>🔄 Mode: {navigationMode}</span>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>

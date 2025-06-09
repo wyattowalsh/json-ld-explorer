@@ -12,7 +12,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
+
   /* Custom CSS Variables for Advanced Theming */
   --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
@@ -21,7 +21,7 @@
   --glass-border: rgba(255, 255, 255, 0.2);
   --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
   --backdrop-blur: blur(20px);
-  
+
   /* Animation Variables */
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -388,5 +388,85 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Enhanced mobile responsiveness with improved touch targets */
+@media (max-width: 768px) {
+  /* Larger touch targets for mobile */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better spacing for mobile */
+  .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  /* Mobile-specific padding adjustments */
+  .p-4 {
+    padding: 0.75rem;
+  }
+
+  .p-6 {
+    padding: 1rem;
+  }
+
+  /* Graph visualization mobile optimizations */
+  .force-graph-container {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text selection during graph interaction */
+  .force-graph-container * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Mobile-specific node info panel */
+  .node-info-panel-mobile {
+    max-width: calc(100vw - 2rem);
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  /* Better mobile scrollbars */
+  .node-info-panel-mobile::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .node-info-panel-mobile::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .node-info-panel-mobile::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+  }
+}
+
+/* Touch-specific improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .hover\:scale-105:hover {
+    transform: none;
+  }
+
+  .hover\:shadow-glass-lg:hover {
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Enhance tap feedback */
+  button:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
   }
 }

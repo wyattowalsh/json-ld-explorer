@@ -68,5 +68,5 @@ export interface VisualizationMode {
   name: string;
   description: string;
   dimension: '2D' | '3D';
-  type: 'force' | 'hierarchy' | 'circular' | 'matrix';
+  type: 'force' | 'hierarchy' | 'circular' | 'matrix' | 'radial' | 'grid' | 'spiral' | 'cluster' | 'arc';
 }
