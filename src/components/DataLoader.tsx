@@ -132,13 +132,25 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
         throw new Error('Invalid JSON-LD format');
       }
 
-      setLoadingProgress(90);
-      setLoadingMessage('Processing completed...');
+      setLoadingProgress(85);
+      setLoadingMessage('Processing graph data...');
+      
+      // Add a small delay to show the processing step
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setLoadingProgress(95);
+      setLoadingMessage('Finalizing visualization...');
       console.log('Calling onDataLoaded with:', data);
       onDataLoaded(data);
       
       setLoadingProgress(100);
       setLoadingMessage('Data loaded successfully!');
+      
+      // Clear the loading message after a short delay
+      setTimeout(() => {
+        setLoadingMessage('');
+        setLoadingProgress(0);
+      }, 2000);
       
       toast({
         title: "Data loaded successfully",
@@ -160,6 +172,13 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
           onDataLoaded(FALLBACK_DATA);
           setLoadingProgress(100);
           setLoadingMessage('Fallback data loaded');
+          
+          // Clear the loading message after a short delay
+          setTimeout(() => {
+            setLoadingMessage('');
+            setLoadingProgress(0);
+          }, 2000);
+          
           toast({
             title: "Using fallback data",
             description: "Original data failed to load, using demo data instead",
@@ -291,12 +310,15 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
                 </>
               )}
             </Button>
-            {isLoading && loadingProgress > 0 && (
+            {(isLoading || loadingProgress > 0) && (
               <div className="space-y-2">
                 <Progress value={loadingProgress} className="w-full" />
-                <p className="text-xs text-muted-foreground text-center">
-                  {loadingMessage}
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                  {loadingProgress < 100 && <Loader2 className="w-3 h-3 animate-spin" />}
+                  <p className="text-xs text-muted-foreground text-center">
+                    {loadingMessage || 'Processing...'}
+                  </p>
+                </div>
               </div>
             )}
           </CardContent>
@@ -350,6 +372,17 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
                   </>
                 )}
               </Button>
+              {(isLoading || loadingProgress > 0) && (
+                <div className="space-y-2">
+                  <Progress value={loadingProgress} className="w-full" />
+                  <div className="flex items-center justify-center gap-2">
+                    {loadingProgress < 100 && <Loader2 className="w-3 h-3 animate-spin" />}
+                    <p className="text-xs text-muted-foreground text-center">
+                      {loadingMessage || 'Processing...'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

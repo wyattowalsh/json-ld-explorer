@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,27 +27,38 @@ export function Dashboard() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const { toast } = useToast();
 
-  const handleDataLoad = async (loadedData: JSONLDData | JSONLDData[]) => {
-    try {
-      setIsLoading(true);
-      setProcessingState('processing');
-      setData(loadedData);
+  const handleDataLoad = useCallback((loadedData: JSONLDData | JSONLDData[]) => {
+    setIsLoading(true);
+    setProcessingState('processing');
 
+    try {
       console.log('Processing loaded data:', loadedData);
 
-      // Process the data
-      const processor = new JSONLDProcessor();
-      const processedGraph = processor.processJSONLD(loadedData);
-      
-      console.log('Generated graph:', processedGraph);
-      
-      if (!processedGraph || !processedGraph.nodes || !processedGraph.links) {
-        throw new Error('Failed to generate valid graph from data');
+      // Validate data before processing
+      if (!loadedData) {
+        throw new Error('No data provided');
       }
 
+      const processor = new JSONLDProcessor();
+      const processedGraph = processor.processJSONLD(loadedData);
+
+      console.log('Generated graph:', processedGraph);
+      console.log('Graph nodes count:', processedGraph.nodes?.length || 0);
+      console.log('Graph links count:', processedGraph.links?.length || 0);
+      
       const stats = processor.generateDataStats(loadedData);
 
-      // Generate analytics only if we have a valid graph
+      console.log('Generated stats:', stats);
+
+      // Validate graph structure
+      if (!processedGraph || !processedGraph.nodes || !Array.isArray(processedGraph.nodes)) {
+        throw new Error('Invalid graph structure generated');
+      }
+
+      if (processedGraph.nodes.length === 0) {
+        throw new Error('No nodes generated from data');
+      }
+
       const analyticsEngine = new GraphAnalyticsEngine();
       const analytics = analyticsEngine.analyzeGraph(processedGraph);
 
@@ -58,25 +68,26 @@ export function Dashboard() {
       setProcessingState('complete');
 
       toast({
-        title: "Data processed successfully!",
-        description: `Generated graph with ${processedGraph.nodes.length} nodes and ${processedGraph.links.length} links.`,
+        title: "Data processed successfully",
+        description: `Generated ${processedGraph.nodes.length} nodes and ${processedGraph.links?.length || 0} links`,
       });
+
     } catch (error) {
       console.error('Error processing data:', error);
-      toast({
-        title: "Processing failed",
-        description: error instanceof Error ? error.message : "There was an error processing your JSON-LD data.",
-        variant: "destructive",
-      });
       setProcessingState('idle');
       setData(null);
       setGraph(null);
       setDataStats(null);
       setGraphAnalytics(null);
+      toast({
+        title: "Error processing data",
+        description: error instanceof Error ? error.message : "Failed to process data",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
@@ -218,7 +229,7 @@ export function Dashboard() {
                                 ))}
                             </div>
                           </div>
-                          
+
                           <div className="space-y-4">
                             <h3 className="text-lg font-semibold">Community Structure</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -285,7 +296,7 @@ export function Dashboard() {
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Processing steps indicator */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-muted-foreground">
