@@ -13,6 +13,7 @@ externalPort = 8099
 exposeLocalhost = true
 
 [workflows]
+runButton = "Run"
 
 [[workflows.workflow]]
 name = "Run"

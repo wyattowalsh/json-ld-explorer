@@ -638,7 +638,7 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
       </div>
     </motion.div>
 
-      {/* Fullscreen Chart Modal */}
+      // {/* Fullscreen Chart Modal */}
       <AnimatePresence>
         {fullscreenChart && (
           <motion.div
