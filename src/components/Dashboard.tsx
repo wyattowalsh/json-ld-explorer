@@ -94,7 +94,7 @@ export function Dashboard() {
           transition={{ delay: 0.1 }}
         >
           <DataLoader 
-            onDataLoad={handleDataLoad} 
+            onDataLoaded={handleDataLoad} 
             isLoading={isLoading}
             processingState={processingState}
           />

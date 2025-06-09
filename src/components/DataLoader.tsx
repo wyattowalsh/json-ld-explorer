@@ -12,6 +12,7 @@ import { JSONLDData } from '@/types';
 interface DataLoaderProps {
   onDataLoaded: (data: JSONLDData | JSONLDData[]) => void;
   isLoading: boolean;
+  processingState?: 'idle' | 'processing' | 'complete';
 }
 
 const DEFAULT_URLS = [
@@ -72,7 +73,7 @@ const FALLBACK_DATA = {
   ]
 };
 
-export function DataLoader({ onDataLoaded, isLoading }: DataLoaderProps) {
+export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoaderProps) {
   const [customUrl, setCustomUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const { toast } = useToast();
