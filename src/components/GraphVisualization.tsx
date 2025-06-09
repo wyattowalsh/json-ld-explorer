@@ -9,13 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ForceGraph2D from 'react-force-graph-2d';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
-
-declare const require: any;
-// Dynamically require to avoid Vite resolution errors:
-let SpriteText: any;
-if (typeof window !== 'undefined') {
-  SpriteText = require('three-spritetext').default;
-}
+import SpriteText from 'three-spritetext';
 
 // UI components & icons
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
