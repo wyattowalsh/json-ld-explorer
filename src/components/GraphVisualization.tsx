@@ -10,7 +10,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { 
   Settings, Maximize2, RotateCcw, Palette, Filter,
-  Eye, EyeOff, Zap, Target, Network, Minimize2, Download
+  Eye, EyeOff, Zap, Target, Network, Minimize2, Download,
+  Move, RotateCw, ZoomIn, ZoomOut, MousePointer, Keyboard,
+  Navigation, Info, Hand, Grab
 } from 'lucide-react';
 import { Graph, VisualizationMode } from '@/types';
 
@@ -37,6 +39,12 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   const [highlightLinks, setHighlightLinks] = useState(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [showNavLegend, setShowNavLegend] = useState(false);
+  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 300 });
+  const [cameraRotation, setCameraRotation] = useState({ x: 0, y: 0, z: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [navigationMode, setNavigationMode] = useState<'orbit' | 'fly' | 'pan'>('orbit');
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
 
@@ -57,15 +65,106 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   }, [isFullscreen]);
 
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleKeyboard = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
         setIsFullscreen(false);
+        return;
+      }
+
+      // Navigation shortcuts
+      const moveSpeed = 20;
+      const rotateSpeed = 0.1;
+      const zoomSpeed = 0.1;
+
+      switch (e.key.toLowerCase()) {
+        case 'w': // Move forward/up
+          if (currentMode.dimension === '3D') {
+            setCameraPosition(prev => ({ ...prev, z: prev.z - moveSpeed }));
+          } else {
+            setPanOffset(prev => ({ ...prev, y: prev.y + moveSpeed }));
+          }
+          break;
+        case 's': // Move backward/down
+          if (currentMode.dimension === '3D') {
+            setCameraPosition(prev => ({ ...prev, z: prev.z + moveSpeed }));
+          } else {
+            setPanOffset(prev => ({ ...prev, y: prev.y - moveSpeed }));
+          }
+          break;
+        case 'a': // Move left
+          if (currentMode.dimension === '3D') {
+            setCameraPosition(prev => ({ ...prev, x: prev.x - moveSpeed }));
+          } else {
+            setPanOffset(prev => ({ ...prev, x: prev.x + moveSpeed }));
+          }
+          break;
+        case 'd': // Move right
+          if (currentMode.dimension === '3D') {
+            setCameraPosition(prev => ({ ...prev, x: prev.x + moveSpeed }));
+          } else {
+            setPanOffset(prev => ({ ...prev, x: prev.x - moveSpeed }));
+          }
+          break;
+        case 'q': // Move up (3D only)
+          if (currentMode.dimension === '3D') {
+            setCameraPosition(prev => ({ ...prev, y: prev.y + moveSpeed }));
+          }
+          break;
+        case 'e': // Move down (3D only)
+          if (currentMode.dimension === '3D') {
+            setCameraPosition(prev => ({ ...prev, y: prev.y - moveSpeed }));
+          }
+          break;
+        case 'arrowup': // Rotate up
+          setCameraRotation(prev => ({ ...prev, x: prev.x - rotateSpeed }));
+          e.preventDefault();
+          break;
+        case 'arrowdown': // Rotate down
+          setCameraRotation(prev => ({ ...prev, x: prev.x + rotateSpeed }));
+          e.preventDefault();
+          break;
+        case 'arrowleft': // Rotate left
+          setCameraRotation(prev => ({ ...prev, y: prev.y - rotateSpeed }));
+          e.preventDefault();
+          break;
+        case 'arrowright': // Rotate right
+          setCameraRotation(prev => ({ ...prev, y: prev.y + rotateSpeed }));
+          e.preventDefault();
+          break;
+        case 'z': // Roll left
+          setCameraRotation(prev => ({ ...prev, z: prev.z - rotateSpeed }));
+          break;
+        case 'x': // Roll right
+          setCameraRotation(prev => ({ ...prev, z: prev.z + rotateSpeed }));
+          break;
+        case '+':
+        case '=': // Zoom in
+          setZoom(prev => Math.min(prev + zoomSpeed, 5));
+          break;
+        case '-': // Zoom out
+          setZoom(prev => Math.max(prev - zoomSpeed, 0.1));
+          break;
+        case 'r': // Reset view
+          resetCamera();
+          break;
+        case 'h': // Toggle navigation help
+          setShowNavLegend(!showNavLegend);
+          break;
+        case '1': // Orbit mode
+          setNavigationMode('orbit');
+          break;
+        case '2': // Fly mode
+          setNavigationMode('fly');
+          break;
+        case '3': // Pan mode
+          setNavigationMode('pan');
+          break;
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isFullscreen]);
+    document.addEventListener('keydown', handleKeyboard);
+    return () => document.removeEventListener('keydown', handleKeyboard);
+  }, [isFullscreen, currentMode, showNavLegend]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -78,6 +177,36 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
       link.download = `graph-visualization-${Date.now()}.png`;
       link.href = canvas.toDataURL();
       link.click();
+    }
+  };
+
+  const resetCamera = () => {
+    setCameraPosition({ x: 0, y: 0, z: 300 });
+    setCameraRotation({ x: 0, y: 0, z: 0 });
+    setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+    if (graphRef.current) {
+      if (currentMode.dimension === '3D') {
+        graphRef.current.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+      } else {
+        graphRef.current.zoom(1, 1000);
+        graphRef.current.centerAt(0, 0, 1000);
+      }
+    }
+  };
+
+  const centerOnNode = (node: any) => {
+    if (graphRef.current && node) {
+      if (currentMode.dimension === '3D') {
+        const distance = 300;
+        graphRef.current.cameraPosition(
+          { x: node.x + distance, y: node.y + distance, z: node.z + distance },
+          node,
+          2000
+        );
+      } else {
+        graphRef.current.centerAt(node.x, node.y, 2000);
+      }
     }
   };
 
@@ -250,7 +379,10 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
           }}
           linkOpacity={linkOpacity[0]}
           showNavInfo={false}
-          controlType="orbit"
+          controlType={navigationMode}
+          enableNavigationControls={true}
+          enablePointerInteraction={true}
+          onNodeRightClick={(node) => centerOnNode(node)}
         />
       );
     }
@@ -265,6 +397,9 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
         enableNodeDrag={true}
         enablePanInteraction={true}
         enableZoomInteraction={true}
+        zoom={zoom}
+        centerAt={[panOffset.x, panOffset.y]}
+        onNodeRightClick={(node) => centerOnNode(node)}
       />
     );
   };
@@ -286,6 +421,22 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                 Graph Visualization
               </CardTitle>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetCamera}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNavLegend(!showNavLegend)}
+                >
+                  <Navigation className="w-4 h-4" />
+                  Nav Help
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -363,6 +514,22 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                         className="w-full"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Navigation Mode</Label>
+                      <div className="flex gap-1">
+                        {['orbit', 'fly', 'pan'].map((mode) => (
+                          <Button
+                            key={mode}
+                            variant={navigationMode === mode ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setNavigationMode(mode as any)}
+                            className="text-xs"
+                          >
+                            {mode}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="flex items-center space-x-2">
                       <Switch
                         id="show-labels"
@@ -412,12 +579,108 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={resetCamera}
+                  className="bg-background/90 backdrop-blur-sm"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNavLegend(!showNavLegend)}
+                  className="bg-background/90 backdrop-blur-sm"
+                >
+                  <Navigation className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={toggleFullscreen}
                   className="bg-background/90 backdrop-blur-sm"
                 >
                   <Maximize2 className="w-4 h-4" />
                 </Button>
               </div>
+
+              {/* Navigation Legend */}
+              <AnimatePresence>
+                {showNavLegend && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -300 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -300 }}
+                    className="absolute top-4 left-4 w-80 bg-background/95 backdrop-blur-sm border rounded-lg p-4 shadow-xl"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <Navigation className="w-4 h-4" />
+                        Navigation Controls
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowNavLegend(false)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <div className="font-medium mb-1 flex items-center gap-1">
+                          <Keyboard className="w-3 h-3" />
+                          Keyboard Controls
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-muted-foreground">
+                          <div><kbd className="bg-muted px-1 rounded">W/A/S/D</kbd> - Move</div>
+                          <div><kbd className="bg-muted px-1 rounded">Q/E</kbd> - Up/Down (3D)</div>
+                          <div><kbd className="bg-muted px-1 rounded">↑↓←→</kbd> - Rotate</div>
+                          <div><kbd className="bg-muted px-1 rounded">Z/X</kbd> - Roll (3D)</div>
+                          <div><kbd className="bg-muted px-1 rounded">+/-</kbd> - Zoom</div>
+                          <div><kbd className="bg-muted px-1 rounded">R</kbd> - Reset view</div>
+                          <div><kbd className="bg-muted px-1 rounded">H</kbd> - Toggle help</div>
+                          <div><kbd className="bg-muted px-1 rounded">1/2/3</kbd> - Nav modes</div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="font-medium mb-1 flex items-center gap-1">
+                          <MousePointer className="w-3 h-3" />
+                          Mouse Controls
+                        </div>
+                        <div className="space-y-1 text-muted-foreground">
+                          <div>• Left click + drag - Pan/Rotate</div>
+                          <div>• Right click node - Center on node</div>
+                          <div>• Scroll wheel - Zoom in/out</div>
+                          {currentMode.dimension === '3D' && (
+                            <>
+                              <div>• Middle click + drag - Pan camera</div>
+                              <div>• Ctrl + drag - Free look mode</div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="font-medium mb-1">Navigation Modes</div>
+                        <div className="space-y-1 text-muted-foreground">
+                          <div><Badge variant="secondary" className="text-xs">Orbit</Badge> - Rotate around center</div>
+                          <div><Badge variant="secondary" className="text-xs">Fly</Badge> - Free camera movement</div>
+                          <div><Badge variant="secondary" className="text-xs">Pan</Badge> - 2D panning mode</div>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 border-t">
+                        <div className="text-center">
+                          <Badge variant="outline" className="text-xs">
+                            Mode: {navigationMode} | {currentMode.dimension}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Node Info Panel */}
               <AnimatePresence>
@@ -476,9 +739,10 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
               <p>{currentMode.description}</p>
               <div className="flex items-center gap-4 mt-2 flex-wrap">
                 <span>💡 Hover over nodes to highlight connections</span>
-                <span>🖱️ Click nodes for details</span>
-                <span>⌨️ Press ESC to exit fullscreen</span>
-                {currentMode.dimension === '3D' && <span>🔄 Drag to rotate view</span>}
+                <span>🖱️ Click nodes for details | Right-click to center</span>
+                <span>⌨️ Press H for navigation help</span>
+                <span>🎮 WASD to move | Arrow keys to rotate</span>
+                <span>🔄 Mode: {navigationMode}</span>
               </div>
             </div>
           </CardContent>
@@ -503,6 +767,22 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                   <Badge variant="outline">{currentMode.name}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetCamera}
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Reset View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNavLegend(!showNavLegend)}
+                  >
+                    <Navigation className="w-4 h-4" />
+                    Nav Help
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -575,6 +855,22 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                           min={0.1}
                           step={0.1}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Navigation Mode</Label>
+                        <div className="flex gap-1">
+                          {['orbit', 'fly', 'pan'].map((mode) => (
+                            <Button
+                              key={mode}
+                              variant={navigationMode === mode ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setNavigationMode(mode as any)}
+                              className="text-xs"
+                            >
+                              {mode}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Switch
