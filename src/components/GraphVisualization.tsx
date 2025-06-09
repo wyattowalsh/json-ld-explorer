@@ -2,6 +2,12 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import ForceGraph2D from 'react-force-graph-2d';
 import ForceGraph3D from 'react-force-graph-3d';
+import * as THREE from 'three';
+
+// Ensure THREE is available globally for ForceGraph3D
+if (typeof window !== 'undefined') {
+  (window as any).THREE = THREE;
+}
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +21,7 @@ import {
   Navigation, Info, Hand, Grab
 } from 'lucide-react';
 import { Graph, VisualizationMode } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface GraphVisualizationProps {
   graph: Graph;
@@ -47,6 +54,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   const [navigationMode, setNavigationMode] = useState<'orbit' | 'fly' | 'pan'>('orbit');
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
+  const [cameraControl, setCameraControl] = useState<'trackball' | 'orbit' | 'fly'>('trackball');
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -368,10 +376,10 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
       return (
         <ForceGraph3D
           {...commonProps}
-          
+
           linkOpacity={linkOpacity[0]}
           showNavInfo={false}
-          controlType={navigationMode}
+          controlType={cameraControl === 'pan' ? 'trackball' : cameraControl}
           enableNavigationControls={true}
           enablePointerInteraction={true}
           onNodeRightClick={(node) => centerOnNode(node)}
@@ -507,20 +515,17 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm">Navigation Mode</Label>
-                      <div className="flex gap-1">
-                        {['orbit', 'fly', 'pan'].map((mode) => (
-                          <Button
-                            key={mode}
-                            variant={navigationMode === mode ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setNavigationMode(mode as any)}
-                            className="text-xs"
-                          >
-                            {mode}
-                          </Button>
-                        ))}
-                      </div>
+                    <Label className="text-sm">Camera Control</Label>
+                      <Select value={cameraControl} onValueChange={setCameraControl}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="trackball">Trackball</SelectItem>
+                          <SelectItem value="orbit">Orbit</SelectItem>
+                          <SelectItem value="fly">Fly</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Switch
@@ -847,8 +852,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                           min={0.1}
                           step={0.1}
                         />
-                      </div>
-                      <div className="space-y-2">
+                      </div><div className="space-y-2">
                         <Label className="text-sm">Navigation Mode</Label>
                         <div className="flex gap-1">
                           {['orbit', 'fly', 'pan'].map((mode) => (

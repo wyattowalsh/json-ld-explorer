@@ -19,59 +19,56 @@ const DEFAULT_URLS = [
   'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld'
 ];
 
-const FALLBACK_DATA = {
-  "@context": "https://schema.org/",
-  "@graph": [
-    {
-      "@type": "Person",
-      "@id": "https://example.com/person/john-doe",
-      "name": "John Doe",
-      "givenName": "John",
-      "familyName": "Doe",
-      "jobTitle": "Senior Software Engineer",
-      "worksFor": {
-        "@type": "Organization",
-        "@id": "https://example.com/org/tech-corp",
-        "name": "Tech Corp",
-        "address": {
-          "@type": "PostalAddress",
-          "addressLocality": "San Francisco",
-          "addressRegion": "CA"
-        }
-      },
-      "knowsAbout": ["JavaScript", "React", "Node.js", "TypeScript"],
-      "alumniOf": {
-        "@type": "EducationalOrganization",
-        "@id": "https://example.com/edu/university-tech",
-        "name": "University of Technology"
-      },
-      "colleague": "https://example.com/person/jane-smith"
-    },
-    {
-      "@type": "Person",
-      "@id": "https://example.com/person/jane-smith",
-      "name": "Jane Smith",
-      "givenName": "Jane",
-      "familyName": "Smith",
-      "jobTitle": "Product Manager",
-      "worksFor": "https://example.com/org/tech-corp",
-      "knowsAbout": ["Product Strategy", "UX Design", "Data Analysis", "Agile"],
-      "colleague": "https://example.com/person/john-doe"
-    },
-    {
+const FALLBACK_DATA = [
+  {
+    "@type": "Person",
+    "@id": "https://example.com/person/john-doe",
+    "name": "John Doe",
+    "givenName": "John",
+    "familyName": "Doe",
+    "jobTitle": "Senior Software Engineer",
+    "worksFor": {
       "@type": "Organization",
       "@id": "https://example.com/org/tech-corp",
       "name": "Tech Corp",
-      "foundingDate": "2015",
-      "numberOfEmployees": 150,
-      "industry": "Technology",
-      "employee": [
-        "https://example.com/person/john-doe",
-        "https://example.com/person/jane-smith"
-      ]
-    }
-  ]
-};
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "San Francisco",
+        "addressRegion": "CA"
+      }
+    },
+    "knowsAbout": ["JavaScript", "React", "Node.js", "TypeScript"],
+    "alumniOf": {
+      "@type": "EducationalOrganization",
+      "@id": "https://example.com/edu/university-tech",
+      "name": "University of Technology"
+    },
+    "colleague": "https://example.com/person/jane-smith"
+  },
+  {
+    "@type": "Person",
+    "@id": "https://example.com/person/jane-smith",
+    "name": "Jane Smith",
+    "givenName": "Jane",
+    "familyName": "Smith",
+    "jobTitle": "Product Manager",
+    "worksFor": "https://example.com/org/tech-corp",
+    "knowsAbout": ["Product Strategy", "UX Design", "Data Analysis", "Agile"],
+    "colleague": "https://example.com/person/john-doe"
+  },
+  {
+    "@type": "Organization",
+    "@id": "https://example.com/org/tech-corp",
+    "name": "Tech Corp",
+    "foundingDate": "2015",
+    "numberOfEmployees": 150,
+    "industry": "Technology",
+    "employee": [
+      "https://example.com/person/john-doe",
+      "https://example.com/person/jane-smith"
+    ]
+  }
+];
 
 export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoaderProps) {
   const [customUrl, setCustomUrl] = useState('');
@@ -103,6 +100,11 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
         if (!data) {
           console.warn('All default URLs failed, using fallback data:', lastError);
           data = FALLBACK_DATA;
+          toast({
+            title: "Using fallback data",
+            description: "Could not load from default URLs, using demo data instead",
+            variant: "default",
+          });
         }
       }
       
