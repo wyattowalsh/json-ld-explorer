@@ -466,19 +466,20 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="grid grid-cols-2 lg:flex lg:flex-wrap gap-2 mb-4">
               {VISUALIZATION_MODES.map((mode) => (
                 <Button
                   key={mode.id}
                   variant={currentMode.id === mode.id ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentMode(mode)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm glass border-glass-border hover:bg-white/20 justify-center"
                 >
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs px-1 py-0.5">
                     {mode.dimension}
                   </Badge>
-                  {mode.name}
+                  <span className="hidden sm:inline">{mode.name}</span>
+                  <span className="sm:hidden">{mode.name.split(' ')[0]}</span>
                 </Button>
               ))}
             </div>
@@ -555,9 +556,12 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
             {/* Visualization Container */}
             <div 
               ref={containerRef}
-              className="relative border rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800"
+              className="relative border border-glass-border rounded-2xl overflow-hidden glass bg-gradient-to-br from-slate-50/50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/50 backdrop-blur-glass"
             >
-              <div className="flex items-center justify-center" style={{ minHeight: `${dimensions.height}px` }}>
+              <div className="flex items-center justify-center" style={{ 
+                minHeight: `${dimensions.height}px`,
+                height: window.innerWidth < 768 ? '70vh' : `${dimensions.height}px`
+              }}>
                 {renderVisualization()}
               </div>
 

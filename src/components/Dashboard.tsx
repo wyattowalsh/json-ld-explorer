@@ -25,6 +25,7 @@ export function Dashboard() {
   const [processingState, setProcessingState] = useState<'idle' | 'processing' | 'complete'>('idle');
   const [showStats, setShowStats] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { toast } = useToast();
 
   const handleDataLoad = useCallback((loadedData: JSONLDData | JSONLDData[]) => {
@@ -90,23 +91,30 @@ export function Dashboard() {
   }, [toast]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
-      <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5 dark:opacity-10">
+        <div className="absolute inset-0 bg-gradient-conic from-transparent via-blue-500 to-transparent opacity-20"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-radial from-purple-400/20 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-radial from-blue-400/20 to-transparent rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="container-fluid space-y-fluid-md relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
+          className="text-center space-y-fluid-sm py-fluid-lg"
         >
-          <div className="flex items-center justify-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
-              <Network className="w-8 h-8 text-white" />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+            <div className="p-3 sm:p-4 bg-gradient-primary rounded-2xl sm:rounded-3xl shadow-glow hover:shadow-glow-lg transition-all duration-300 hover-scale">
+              <Network className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-fluid-3xl sm:text-fluid-4xl font-display font-bold gradient-text text-center sm:text-left">
               JSON-LD Graph Explorer
             </h1>
           </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-fluid-base text-muted-foreground max-w-2xl mx-auto px-4 sm:px-0 leading-relaxed">
             Visualize and explore your linked data with advanced graph algorithms and interactive controls
           </p>
         </motion.div>
@@ -134,33 +142,34 @@ export function Dashboard() {
               className="space-y-6"
             >
               {/* Quick Stats Bar */}
-              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2">
-                        <Network className="w-5 h-5 text-blue-600" />
-                        <span className="font-semibold">{graph.nodes.length} Nodes</span>
+              <Card className="glass-strong border-glass-border rounded-2xl shadow-glass hover:shadow-glass-lg transition-all duration-300 overflow-hidden">
+                <CardContent className="p-4 sm:p-6">
+                  {/* Mobile Layout */}
+                  <div className="block lg:hidden space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-200/20">
+                        <Network className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-semibold">{graph.nodes.length} Nodes</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Share className="w-5 h-5 text-indigo-600" />
-                        <span className="font-semibold">{graph.links.length} Links</span>
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-200/20">
+                        <Share className="w-4 h-4 text-indigo-600" />
+                        <span className="text-sm font-semibold">{graph.links.length} Links</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Database className="w-5 h-5 text-purple-600" />
-                        <span className="font-semibold">{Object.keys(dataStats.entityTypes).length} Types</span>
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200/20">
+                        <Database className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-semibold">{Object.keys(dataStats.entityTypes).length} Types</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                        <span className="font-semibold">Density: {(graphAnalytics.density * 100).toFixed(1)}%</span>
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-200/20">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-semibold">{(graphAnalytics.density * 100).toFixed(1)}%</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setShowStats(!showStats)}
-                        className="bg-white/80"
+                        className="glass border-glass-border hover:bg-white/20 flex-1"
                       >
                         <BarChart3 className="w-4 h-4 mr-2" />
                         Stats
@@ -170,7 +179,51 @@ export function Dashboard() {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowAnalytics(!showAnalytics)}
-                        className="bg-white/80"
+                        className="glass border-glass-border hover:bg-white/20 flex-1"
+                      >
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                        Analytics
+                        {showAnalytics ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden lg:flex items-center justify-between">
+                    <div className="flex items-center gap-6 xl:gap-8">
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-200/20 hover-scale">
+                        <Network className="w-5 h-5 text-blue-600" />
+                        <span className="font-semibold">{graph.nodes.length} Nodes</span>
+                      </div>
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-200/20 hover-scale">
+                        <Share className="w-5 h-5 text-indigo-600" />
+                        <span className="font-semibold">{graph.links.length} Links</span>
+                      </div>
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200/20 hover-scale">
+                        <Database className="w-5 h-5 text-purple-600" />
+                        <span className="font-semibold">{Object.keys(dataStats.entityTypes).length} Types</span>
+                      </div>
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-200/20 hover-scale">
+                        <TrendingUp className="w-5 h-5 text-green-600" />
+                        <span className="font-semibold">Density: {(graphAnalytics.density * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowStats(!showStats)}
+                        className="glass border-glass-border hover:bg-white/20 hover-glow"
+                      >
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Stats
+                        {showStats ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAnalytics(!showAnalytics)}
+                        className="glass border-glass-border hover:bg-white/20 hover-glow"
                       >
                         <TrendingUp className="w-4 h-4 mr-2" />
                         Analytics
@@ -337,23 +390,31 @@ export function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-center py-16"
+            className="text-center py-fluid-xl"
           >
-            <div className="space-y-6">
-              <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl">
-                <Sparkles className="w-12 h-12 text-white" />
+            <div className="space-y-fluid-lg max-w-4xl mx-auto">
+              <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gradient-primary rounded-3xl sm:rounded-4xl flex items-center justify-center shadow-glow animate-float hover-glow">
+                <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 text-white" />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-muted-foreground">Ready to Explore</h2>
-                <p className="text-muted-foreground max-w-md mx-auto">
+              <div className="space-y-4 px-4">
+                <h2 className="text-fluid-2xl font-display font-bold gradient-text">Ready to Explore</h2>
+                <p className="text-fluid-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                   Upload your JSON-LD data above to start visualizing your linked data graph with advanced analytics and interactive controls.
                 </p>
               </div>
-              <div className="flex justify-center gap-4 text-sm text-muted-foreground">
-                <Badge variant="outline">Multiple Layout Algorithms</Badge>
-                <Badge variant="outline">3D Visualization</Badge>
-                <Badge variant="outline">Advanced Analytics</Badge>
-                <Badge variant="outline">Interactive Navigation</Badge>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-3xl mx-auto px-4">
+                <Badge variant="outline" className="glass border-glass-border hover-scale text-xs sm:text-sm p-2 sm:p-3">
+                  Multiple Layout Algorithms
+                </Badge>
+                <Badge variant="outline" className="glass border-glass-border hover-scale text-xs sm:text-sm p-2 sm:p-3">
+                  3D Visualization
+                </Badge>
+                <Badge variant="outline" className="glass border-glass-border hover-scale text-xs sm:text-sm p-2 sm:p-3">
+                  Advanced Analytics
+                </Badge>
+                <Badge variant="outline" className="glass border-glass-border hover-scale text-xs sm:text-sm p-2 sm:p-3">
+                  Interactive Navigation
+                </Badge>
               </div>
             </div>
           </motion.div>

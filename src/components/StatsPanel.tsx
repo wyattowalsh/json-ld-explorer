@@ -204,7 +204,7 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-fluid-md">
           {/* Entity Types Distribution */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
