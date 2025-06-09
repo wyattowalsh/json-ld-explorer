@@ -156,7 +156,6 @@ export class GraphAnalyticsEngine {
         
         currentPreds.forEach(pred => {
           const contribution = (pathCounts.get(pred)! / pathCounts.get(current)!) * (1 + delta.get(current)!);
-          )
           delta.set(pred, delta.get(pred)! + contribution);
         });
         
