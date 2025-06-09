@@ -5,11 +5,13 @@ export class GraphAnalyticsEngine {
   private adjacencyList: Map<string, Set<string>>;
   private nodeMap: Map<string, GraphNode>;
 
-  constructor(graph: Graph) {
-    this.graph = graph;
+  constructor(graph?: Graph) {
+    this.graph = graph || { nodes: [], links: [] };
     this.adjacencyList = new Map();
     this.nodeMap = new Map();
-    this.buildAdjacencyList();
+    if (graph) {
+      this.buildAdjacencyList();
+    }
   }
 
   private buildAdjacencyList(): void {
@@ -30,6 +32,14 @@ export class GraphAnalyticsEngine {
       this.adjacencyList.get(sourceId)?.add(targetId);
       this.adjacencyList.get(targetId)?.add(sourceId);
     });
+  }
+
+  public analyzeGraph(graph: Graph): GraphAnalytics {
+    this.graph = graph;
+    this.adjacencyList.clear();
+    this.nodeMap.clear();
+    this.buildAdjacencyList();
+    return this.calculateAnalytics();
   }
 
   public calculateAnalytics(): GraphAnalytics {
