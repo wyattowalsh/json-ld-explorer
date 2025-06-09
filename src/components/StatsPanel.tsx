@@ -170,475 +170,476 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="space-y-6"
-    >
-      {/* Overview Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {metricsCards.map((metric, index) => (
-          <motion.div
-            key={metric.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="relative overflow-hidden">
-              <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient}`} />
-              <CardContent className="relative p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {metric.title}
-                    </p>
-                    <p className="text-2xl font-bold">{metric.value}</p>
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-6"
+      >
+        {/* Overview Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {metricsCards.map((metric, index) => (
+            <motion.div
+              key={metric.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="relative overflow-hidden">
+                <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient}`} />
+                <CardContent className="relative p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {metric.title}
+                      </p>
+                      <p className="text-2xl font-bold">{metric.value}</p>
+                    </div>
+                    <metric.icon className={`w-8 h-8 ${metric.color}`} />
                   </div>
-                  <metric.icon className={`w-8 h-8 ${metric.color}`} />
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Entity Types Distribution */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Entity Types Distribution
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="flex rounded-md border">
+                      <Button
+                        variant={activeChartType.entityTypes === 'pie' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => toggleChartType('entityTypes', 'pie')}
+                        className="rounded-r-none"
+                      >
+                        <PieChartIcon className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={activeChartType.entityTypes === 'bar' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => toggleChartType('entityTypes', 'bar')}
+                        className="rounded-l-none"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportChart('entity-types-chart')}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFullscreenChart('entityTypes')}
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div id="entity-types-chart">
+                    <ResponsiveContainer width="100%" height={320}>
+                      {activeChartType.entityTypes === 'pie' ? (
+                        <PieChart>
+                          <Pie
+                            data={entityTypeData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={70}
+                            outerRadius={130}
+                            paddingAngle={3}
+                            dataKey="value"
+                          >
+                            {entityTypeData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.fill}
+                                stroke="#fff"
+                                strokeWidth={2}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend 
+                            verticalAlign="bottom" 
+                            height={36}
+                            formatter={(value, entry) => `${value} (${entry.payload.percentage}%)`}
+                          />
+                        </PieChart>
+                      ) : (
+                        <BarChart data={entityTypeData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis 
+                            dataKey="name" 
+                            angle={-45} 
+                            textAnchor="end" 
+                            height={80}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Bar 
+                            dataKey="value" 
+                            radius={[4, 4, 0, 0]}
+                            fill="#8884d8"
+                          />
+                        </BarChart>
+                      )}
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {entityTypeData.map((item, index) => (
+                      <motion.div
+                        key={item.name}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Badge 
+                          variant="outline"
+                          className="text-xs cursor-pointer transition-all"
+                          style={{ 
+                            borderColor: item.fill,
+                            color: item.fill
+                          }}
+                        >
+                          {item.name}: {item.value} ({item.percentage}%)
+                        </Badge>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
-        ))}
-      </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Entity Types Distribution */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Entity Types Distribution
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="flex rounded-md border">
+          {/* Centrality Analysis */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Centrality Analysis
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="flex rounded-md border">
+                      <Button
+                        variant={activeChartType.centrality === 'bar' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => toggleChartType('centrality', 'bar')}
+                        className="rounded-r-none"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={activeChartType.centrality === 'scatter' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => toggleChartType('centrality', 'scatter')}
+                        className="rounded-l-none"
+                      >
+                        <Target className="w-4 h-4" />
+                      </Button>
+                    </div>
                     <Button
-                      variant={activeChartType.entityTypes === 'pie' ? 'default' : 'ghost'}
+                      variant="outline"
                       size="sm"
-                      onClick={() => toggleChartType('entityTypes', 'pie')}
-                      className="rounded-r-none"
+                      onClick={() => exportChart('centrality-chart')}
                     >
-                      <PieChartIcon className="w-4 h-4" />
+                      <Download className="w-4 h-4" />
                     </Button>
                     <Button
-                      variant={activeChartType.entityTypes === 'bar' ? 'default' : 'ghost'}
+                      variant="outline"
                       size="sm"
-                      onClick={() => toggleChartType('entityTypes', 'bar')}
-                      className="rounded-l-none"
+                      onClick={() => setFullscreenChart('centrality')}
                     >
-                      <BarChart3 className="w-4 h-4" />
+                      <Maximize2 className="w-4 h-4" />
                     </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => exportChart('entity-types-chart')}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFullscreenChart('entityTypes')}
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                  </Button>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div id="entity-types-chart">
+              </CardHeader>
+              <CardContent>
+                <div id="centrality-chart">
                   <ResponsiveContainer width="100%" height={320}>
-                    {activeChartType.entityTypes === 'pie' ? (
-                      <PieChart>
-                        <Pie
-                          data={entityTypeData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={70}
-                          outerRadius={130}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {entityTypeData.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={entry.fill}
-                              stroke="#fff"
-                              strokeWidth={2}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend 
-                          verticalAlign="bottom" 
-                          height={36}
-                          formatter={(value, entry) => `${value} (${entry.payload.percentage}%)`}
+                    {activeChartType.centrality === 'bar' ? (
+                      <BarChart data={centralityData.slice(0, 10)} layout="horizontal">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis type="number" tick={{ fontSize: 12 }} />
+                        <YAxis 
+                          dataKey="node" 
+                          type="category" 
+                          width={120} 
+                          tick={{ fontSize: 11 }}
                         />
-                      </PieChart>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="degree" fill="#8884d8" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="betweenness" fill="#82ca9d" radius={[0, 4, 4, 0]} />
+                      </BarChart>
                     ) : (
-                      <BarChart data={entityTypeData}>
+                      <ScatterChart data={centralityData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis 
-                          dataKey="name" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={80}
+                          dataKey="betweenness" 
+                          name="Betweenness" 
                           tick={{ fontSize: 12 }}
                         />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar 
-                          dataKey="value" 
-                          radius={[4, 4, 0, 0]}
+                        <YAxis 
+                          dataKey="closeness" 
+                          name="Closeness" 
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip 
+                          cursor={{ strokeDasharray: '3 3' }}
+                          content={<CustomTooltip />}
+                        />
+                        <Scatter 
+                          name="Nodes" 
+                          dataKey="degree" 
                           fill="#8884d8"
                         />
-                      </BarChart>
+                      </ScatterChart>
                     )}
                   </ResponsiveContainer>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {entityTypeData.map((item, index) => (
-                    <motion.div
-                      key={item.name}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Badge 
-                        variant="outline"
-                        className="text-xs cursor-pointer transition-all"
-                        style={{ 
-                          borderColor: item.fill,
-                          color: item.fill
-                        }}
-                      >
-                        {item.name}: {item.value} ({item.percentage}%)
-                      </Badge>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Centrality Analysis */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Centrality Analysis
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="flex rounded-md border">
-                    <Button
-                      variant={activeChartType.centrality === 'bar' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => toggleChartType('centrality', 'bar')}
-                      className="rounded-r-none"
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={activeChartType.centrality === 'scatter' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => toggleChartType('centrality', 'scatter')}
-                      className="rounded-l-none"
-                    >
-                      <Target className="w-4 h-4" />
-                    </Button>
+                <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+                  <div className="text-center p-2 bg-muted/50 rounded">
+                    <p className="font-medium text-blue-600">Degree Centrality</p>
+                    <p className="text-xs text-muted-foreground">Direct connections</p>
                   </div>
+                  <div className="text-center p-2 bg-muted/50 rounded">
+                    <p className="font-medium text-green-600">Betweenness Centrality</p>
+                    <p className="text-xs text-muted-foreground">Bridge importance</p>
+                  </div>
+                  <div className="text-center p-2 bg-muted/50 rounded">
+                    <p className="font-medium text-purple-600">Closeness Centrality</p>
+                    <p className="text-xs text-muted-foreground">Reach efficiency</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Degree Distribution */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <GitBranch className="w-5 h-5" />
+                    Degree Distribution
+                  </CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => exportChart('centrality-chart')}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFullscreenChart('centrality')}
+                    onClick={() => setFullscreenChart('degreeDistribution')}
                   >
                     <Maximize2 className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div id="centrality-chart">
-                <ResponsiveContainer width="100%" height={320}>
-                  {activeChartType.centrality === 'bar' ? (
-                    <BarChart data={centralityData.slice(0, 10)} layout="horizontal">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis type="number" tick={{ fontSize: 12 }} />
-                      <YAxis 
-                        dataKey="node" 
-                        type="category" 
-                        width={120} 
-                        tick={{ fontSize: 11 }}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="degree" fill="#8884d8" radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="betweenness" fill="#82ca9d" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  ) : (
-                    <ScatterChart data={centralityData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis 
-                        dataKey="betweenness" 
-                        name="Betweenness" 
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis 
-                        dataKey="closeness" 
-                        name="Closeness" 
-                        tick={{ fontSize: 12 }}
-                      />
-                      <Tooltip 
-                        cursor={{ strokeDasharray: '3 3' }}
-                        content={<CustomTooltip />}
-                      />
-                      <Scatter 
-                        name="Nodes" 
-                        dataKey="degree" 
-                        fill="#8884d8"
-                      />
-                    </ScatterChart>
-                  )}
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-                <div className="text-center p-2 bg-muted/50 rounded">
-                  <p className="font-medium text-blue-600">Degree Centrality</p>
-                  <p className="text-xs text-muted-foreground">Direct connections</p>
-                </div>
-                <div className="text-center p-2 bg-muted/50 rounded">
-                  <p className="font-medium text-green-600">Betweenness Centrality</p>
-                  <p className="text-xs text-muted-foreground">Bridge importance</p>
-                </div>
-                <div className="text-center p-2 bg-muted/50 rounded">
-                  <p className="font-medium text-purple-600">Closeness Centrality</p>
-                  <p className="text-xs text-muted-foreground">Reach efficiency</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Degree Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <GitBranch className="w-5 h-5" />
-                  Degree Distribution
-                </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFullscreenChart('degreeDistribution')}
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={degreeDistributionData.slice(0, 20)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis 
-                    dataKey="degree" 
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Degree', position: 'insideBottom', offset: -10 }}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                    fillOpacity={0.6}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-              <div className="mt-2 text-center">
-                <Badge variant="outline">
-                  Power-law distribution indicates scale-free network
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Relationship Types */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Share2 className="w-5 h-5" />
-                  Relationship Types
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="flex rounded-md border">
-                    <Button
-                      variant={activeChartType.relationships === 'bar' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => toggleChartType('relationships', 'bar')}
-                      className="rounded-r-none"
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={activeChartType.relationships === 'radial' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => toggleChartType('relationships', 'radial')}
-                      className="rounded-l-none"
-                    >
-                      <Target className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFullscreenChart('relationships')}
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                {activeChartType.relationships === 'bar' ? (
-                  <BarChart data={relationshipData}>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={degreeDistributionData.slice(0, 20)}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis 
-                      dataKey="name" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={80}
-                      tick={{ fontSize: 11 }}
+                      dataKey="degree" 
+                      tick={{ fontSize: 12 }}
+                      label={{ value: 'Degree', position: 'insideBottom', offset: -10 }}
                     />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar 
-                      dataKey="count" 
-                      fill="#82ca9d" 
-                      radius={[4, 4, 0, 0]}
-                      stroke="#fff"
-                      strokeWidth={1}
-                    />
-                  </BarChart>
-                ) : (
-                  <RadialBarChart data={relationshipData.slice(0, 8)} innerRadius="20%" outerRadius="90%">
-                    <RadialBar 
-                      dataKey="count" 
-                      cornerRadius={4} 
-                      fill="#82ca9d"
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend 
-                      iconSize={8}
-                      width={120}
-                      height={140}
-                      layout="vertical"
-                      verticalAlign="middle"
-                      align="right"
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#8884d8"
+                      fill="#8884d8"
+                      fillOpacity={0.6}
+                      strokeWidth={2}
                     />
-                  </RadialBarChart>
-                )}
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="mt-2 text-center">
+                  <Badge variant="outline">
+                    Power-law distribution indicates scale-free network
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-        {/* Centrality Measures Summary */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Network className="w-5 h-5" />
-                Network Analytics Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="font-medium text-muted-foreground">Max Degree</p>
-                  <p className="text-lg font-bold">{graphAnalytics.maxDegree}</p>
+          {/* Relationship Types */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Share2 className="w-5 h-5" />
+                    Relationship Types
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="flex rounded-md border">
+                      <Button
+                        variant={activeChartType.relationships === 'bar' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => toggleChartType('relationships', 'bar')}
+                        className="rounded-r-none"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={activeChartType.relationships === 'radial' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => toggleChartType('relationships', 'radial')}
+                        className="rounded-l-none"
+                      >
+                        <Target className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFullscreenChart('relationships')}
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-muted-foreground">Min Degree</p>
-                  <p className="text-lg font-bold">{graphAnalytics.minDegree}</p>
-                </div>
-                <div>
-                  <p className="font-medium text-muted-foreground">Communities</p>
-                  <p className="text-lg font-bold">
-                    {new Set(Object.values(graphAnalytics.communities)).size}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium text-muted-foreground">Data Complexity</p>
-                  <p className="text-lg font-bold">{dataStats.dataComplexity.toFixed(1)}</p>
-                </div>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Top Properties</p>
-                <div className="flex flex-wrap gap-1">
-                  {Object.entries(dataStats.propertyCount)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 5)
-                    .map(([property, count]) => (
-                      <Badge key={property} variant="secondary" className="text-xs">
-                        {property}: {count}
-                      </Badge>
-                    ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    </motion.div>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  {activeChartType.relationships === 'bar' ? (
+                    <BarChart data={relationshipData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="name" 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={80}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar 
+                        dataKey="count" 
+                        fill="#82ca9d" 
+                        radius={[4, 4, 0, 0]}
+                        stroke="#fff"
+                        strokeWidth={1}
+                      />
+                    </BarChart>
+                  ) : (
+                    <RadialBarChart data={relationshipData.slice(0, 8)} innerRadius="20%" outerRadius="90%">
+                      <RadialBar 
+                        dataKey="count" 
+                        cornerRadius={4} 
+                        fill="#82ca9d"
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend 
+                        iconSize={8}
+                        width={120}
+                        height={140}
+                        layout="vertical"
+                        verticalAlign="middle"
+                        align="right"
+                      />
+                    </RadialBarChart>
+                  )}
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-      // {/* Fullscreen Chart Modal */}
+          {/* Centrality Measures Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Network className="w-5 h-5" />
+                  Network Analytics Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="font-medium text-muted-foreground">Max Degree</p>
+                    <p className="text-lg font-bold">{graphAnalytics.maxDegree}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-muted-foreground">Min Degree</p>
+                    <p className="text-lg font-bold">{graphAnalytics.minDegree}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-muted-foreground">Communities</p>
+                    <p className="text-lg font-bold">
+                      {new Set(Object.values(graphAnalytics.communities)).size}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-muted-foreground">Data Complexity</p>
+                    <p className="text-lg font-bold">{dataStats.dataComplexity.toFixed(1)}</p>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Top Properties</p>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(dataStats.propertyCount)
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 5)
+                      .map(([property, count]) => (
+                        <Badge key={property} variant="secondary" className="text-xs">
+                          {property}: {count}
+                        </Badge>
+                      ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Fullscreen Chart Modal */}
       <AnimatePresence>
         {fullscreenChart && (
           <motion.div
