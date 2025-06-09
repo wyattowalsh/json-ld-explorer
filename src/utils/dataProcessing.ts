@@ -5,12 +5,27 @@ export class JSONLDProcessor {
   private nodeMap: Map<string, GraphNode>;
   private links: GraphLink[];
 
-  constructor(data: JSONLDData | JSONLDData[]) {
+  constructor(data?: JSONLDData | JSONLDData[]) {
     // Handle nested array structures and flatten them
-    this.data = this.flattenData(data);
+    this.data = data ? this.flattenData(data) : [];
     this.nodeMap = new Map();
     this.links = [];
+    if (this.data.length > 0) {
+      this.processData();
+    }
+  }
+
+  public processJSONLD(data: JSONLDData | JSONLDData[]): Graph {
+    this.data = this.flattenData(data);
+    this.nodeMap.clear();
+    this.links = [];
     this.processData();
+    return this.getGraph();
+  }
+
+  public generateDataStats(data: JSONLDData | JSONLDData[]): DataStats {
+    this.data = this.flattenData(data);
+    return this.getDataStats();
   }
 
   private flattenData(data: JSONLDData | JSONLDData[]): JSONLDData[] {

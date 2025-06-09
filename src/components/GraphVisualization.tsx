@@ -95,7 +95,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
           if (currentMode.dimension === '3D') {
             setCameraPosition(prev => ({ ...prev, x: prev.x - moveSpeed }));
           } else {
-            setPanOffset(prev => ({ ...prev, x: prev.x + moveSpeed }));
+            setPanOffset(prev => ({ ...prev, x: prev.x - moveSpeed }));
           }
           break;
         case 'd': // Move right
@@ -225,7 +225,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
         const typeIndex = typeNodes.findIndex(n => n.id === node.id);
         const typeAngle = (typeIndex / typeNodes.length) * 2 * Math.PI;
         const typeRadius = Object.keys(nodesByType).indexOf(type) * 100 + 50;
-        
+
         return {
           ...node,
           fx: Math.cos(typeAngle) * typeRadius,
@@ -301,7 +301,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
     const size = node.size || 5;
     const isHighlighted = highlightNodes.has(node.id);
-    
+
     // Draw node
     ctx.fillStyle = node.color || '#69b3a2';
     ctx.globalAlpha = isHighlighted ? 1 : 0.8;
@@ -325,7 +325,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
       ctx.globalAlpha = 1;
       ctx.fillText(node.name, node.x, node.y + size + 12);
     }
-    
+
     ctx.globalAlpha = 1;
   }, [highlightNodes, showLabels]);
 
@@ -340,12 +340,12 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
     ctx.strokeStyle = link.color || (isHighlighted ? '#ff6b6b' : '#ccc');
     ctx.lineWidth = isHighlighted ? 3 : 1;
     ctx.globalAlpha = isHighlighted ? 1 : linkOpacity[0];
-    
+
     ctx.beginPath();
     ctx.moveTo(link.source.x, link.source.y);
     ctx.lineTo(link.target.x, link.target.y);
     ctx.stroke();
-    
+
     ctx.globalAlpha = 1;
   }, [showLinks, linkOpacity, highlightLinks]);
 
@@ -368,23 +368,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
       return (
         <ForceGraph3D
           {...commonProps}
-          nodeThreeObject={(node: any) => {
-            try {
-              if (typeof window !== 'undefined' && (window as any).THREE) {
-                const THREE = (window as any).THREE;
-                const geometry = new THREE.SphereGeometry(node.size || 5, 16, 12);
-                const material = new THREE.MeshLambertMaterial({ 
-                  color: node.color || '#69b3a2',
-                  transparent: true,
-                  opacity: highlightNodes.has(node.id) ? 1 : 0.8
-                });
-                return new THREE.Mesh(geometry, material);
-              }
-            } catch (error) {
-              console.warn('Three.js not available for custom node rendering');
-            }
-            return undefined; // Fallback to default rendering
-          }}
+          
           linkOpacity={linkOpacity[0]}
           showNavInfo={false}
           controlType={navigationMode}
@@ -571,7 +555,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
               <div className="flex items-center justify-center" style={{ minHeight: `${dimensions.height}px` }}>
                 {renderVisualization()}
               </div>
-              
+
               {/* Info Overlay */}
               <div className="absolute top-4 left-4 space-y-2">
                 <Badge variant="outline" className="bg-background/90 backdrop-blur-sm">
@@ -632,7 +616,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                         ×
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-3 text-xs">
                       <div>
                         <div className="font-medium mb-1 flex items-center gap-1">
@@ -650,7 +634,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                           <div><kbd className="bg-muted px-1 rounded">1/2/3</kbd> - Nav modes</div>
                         </div>
                       </div>
-                      
+
                       <div>
                         <div className="font-medium mb-1 flex items-center gap-1">
                           <MousePointer className="w-3 h-3" />
@@ -668,7 +652,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                           )}
                         </div>
                       </div>
-                      
+
                       <div>
                         <div className="font-medium mb-1">Navigation Modes</div>
                         <div className="space-y-1 text-muted-foreground">
@@ -677,7 +661,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
                           <div><Badge variant="secondary" className="text-xs">Pan</Badge> - 2D panning mode</div>
                         </div>
                       </div>
-                      
+
                       <div className="pt-2 border-t">
                         <div className="text-center">
                           <Badge variant="outline" className="text-xs">
