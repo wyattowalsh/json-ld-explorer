@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ForceGraph2D from 'react-force-graph-2d';
 import ForceGraph3D from 'react-force-graph-3d';
@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { 
   Settings, Maximize2, RotateCcw, Palette, Filter,
-  Eye, EyeOff, Zap, Target, Network
+  Eye, EyeOff, Zap, Target, Network, Minimize2, Download
 } from 'lucide-react';
 import { Graph, VisualizationMode } from '@/types';
 
@@ -35,6 +35,51 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [highlightNodes, setHighlightNodes] = useState(new Set());
   const [highlightLinks, setHighlightLinks] = useState(new Set());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const graphRef = useRef<any>(null);
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDimensions({
+          width: isFullscreen ? window.innerWidth - 40 : rect.width - 40,
+          height: isFullscreen ? window.innerHeight - 140 : 600
+        });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const exportGraph = () => {
+    if (graphRef.current) {
+      const canvas = graphRef.current.canvas();
+      const link = document.createElement('a');
+      link.download = `graph-visualization-${Date.now()}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+  };
 
   const processedGraph = useMemo(() => {
     if (currentMode.type === 'circular') {
@@ -177,6 +222,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
 
   const renderVisualization = () => {
     const commonProps = {
+      ref: graphRef,
       graphData: processedGraph,
       onNodeHover: handleNodeHover,
       onNodeClick: handleNodeClick,
@@ -185,8 +231,8 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
       nodeAutoColorBy: 'type',
       linkAutoColorBy: 'type',
       backgroundColor: 'rgba(0,0,0,0)',
-      width: 800,
-      height: 600
+      width: dimensions.width,
+      height: dimensions.height
     };
 
     if (currentMode.dimension === '3D') {
@@ -204,6 +250,7 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
           }}
           linkOpacity={linkOpacity[0]}
           showNavInfo={false}
+          controlType="orbit"
         />
       );
     }
@@ -215,185 +262,421 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
         linkCanvasObject={linkCanvasObject}
         cooldownTicks={100}
         onEngineStop={() => setHighlightNodes(new Set())}
+        enableNodeDrag={true}
+        enablePanInteraction={true}
+        enableZoomInteraction={true}
       />
     );
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="space-y-6"
-    >
-      {/* Mode Selection */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Network className="w-5 h-5" />
-              Graph Visualization
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSettings(!showSettings)}
-              >
-                <Settings className="w-4 h-4" />
-                Settings
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {VISUALIZATION_MODES.map((mode) => (
-              <Button
-                key={mode.id}
-                variant={currentMode.id === mode.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentMode(mode)}
-                className="flex items-center gap-2"
-              >
-                <Badge variant="secondary" className="text-xs">
-                  {mode.dimension}
-                </Badge>
-                {mode.name}
-              </Button>
-            ))}
-          </div>
-
-          <AnimatePresence>
-            {showSettings && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="border rounded-lg p-4 space-y-4 mb-4"
-              >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Node Size</Label>
-                    <Slider
-                      value={nodeSize}
-                      onValueChange={setNodeSize}
-                      max={20}
-                      min={2}
-                      step={1}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Link Opacity</Label>
-                    <Slider
-                      value={linkOpacity}
-                      onValueChange={setLinkOpacity}
-                      max={1}
-                      min={0.1}
-                      step={0.1}
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="show-labels"
-                      checked={showLabels}
-                      onCheckedChange={setShowLabels}
-                    />
-                    <Label htmlFor="show-labels" className="text-sm">
-                      Show Labels
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="show-links"
-                      checked={showLinks}
-                      onCheckedChange={setShowLinks}
-                    />
-                    <Label htmlFor="show-links" className="text-sm">
-                      Show Links
-                    </Label>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Visualization Container */}
-          <div className="relative border rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-            <div className="flex items-center justify-center min-h-[600px]">
-              {renderVisualization()}
-            </div>
-            
-            {/* Info Overlay */}
-            <div className="absolute top-4 left-4 space-y-2">
-              <Badge variant="outline" className="bg-background/80 backdrop-blur">
-                {processedGraph.nodes.length} nodes, {processedGraph.links.length} links
-              </Badge>
-              <Badge variant="outline" className="bg-background/80 backdrop-blur">
-                {currentMode.name}
-              </Badge>
-            </div>
-
-            {/* Node Info Panel */}
-            <AnimatePresence>
-              {selectedNode && (
-                <motion.div
-                  initial={{ opacity: 0, x: 300 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 300 }}
-                  className="absolute top-4 right-4 w-64 bg-background border rounded-lg p-4 shadow-lg"
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-6"
+      >
+        {/* Mode Selection */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Network className="w-5 h-5" />
+                Graph Visualization
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportGraph}
+                  disabled={!graphRef.current}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-sm">Node Details</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedNode(null)}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="font-medium">Name:</span> {selectedNode.name}
+                  <Download className="w-4 h-4" />
+                  Export
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleFullscreen}
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  Fullscreen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSettings(!showSettings)}
+                >
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {VISUALIZATION_MODES.map((mode) => (
+                <Button
+                  key={mode.id}
+                  variant={currentMode.id === mode.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentMode(mode)}
+                  className="flex items-center gap-2"
+                >
+                  <Badge variant="secondary" className="text-xs">
+                    {mode.dimension}
+                  </Badge>
+                  {mode.name}
+                </Button>
+              ))}
+            </div>
+
+            <AnimatePresence>
+              {showSettings && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border rounded-lg p-4 space-y-4 mb-4 bg-muted/50"
+                >
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Node Size: {nodeSize[0]}</Label>
+                      <Slider
+                        value={nodeSize}
+                        onValueChange={setNodeSize}
+                        max={20}
+                        min={2}
+                        step={1}
+                        className="w-full"
+                      />
                     </div>
-                    <div>
-                      <span className="font-medium">Type:</span> {selectedNode.type}
+                    <div className="space-y-2">
+                      <Label className="text-sm">Link Opacity: {linkOpacity[0].toFixed(1)}</Label>
+                      <Slider
+                        value={linkOpacity}
+                        onValueChange={setLinkOpacity}
+                        max={1}
+                        min={0.1}
+                        step={0.1}
+                        className="w-full"
+                      />
                     </div>
-                    <div>
-                      <span className="font-medium">ID:</span> {selectedNode.id}
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="show-labels"
+                        checked={showLabels}
+                        onCheckedChange={setShowLabels}
+                      />
+                      <Label htmlFor="show-labels" className="text-sm">
+                        Show Labels
+                      </Label>
                     </div>
-                    {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (
-                      <div>
-                        <span className="font-medium">Properties:</span>
-                        <div className="mt-1 max-h-32 overflow-y-auto">
-                          {Object.entries(selectedNode.properties)
-                            .filter(([key]) => !key.startsWith('@'))
-                            .slice(0, 5)
-                            .map(([key, value]) => (
-                              <div key={key} className="text-xs text-muted-foreground">
-                                {key}: {String(value).substring(0, 30)}...
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="show-links"
+                        checked={showLinks}
+                        onCheckedChange={setShowLinks}
+                      />
+                      <Label htmlFor="show-links" className="text-sm">
+                        Show Links
+                      </Label>
+                    </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
 
-          <div className="mt-4 text-sm text-muted-foreground">
-            <p>{currentMode.description}</p>
-            <div className="flex items-center gap-4 mt-2">
-              <span>💡 Hover over nodes to highlight connections</span>
-              <span>🖱️ Click nodes for details</span>
-              {currentMode.dimension === '3D' && <span>🔄 Drag to rotate view</span>}
+            {/* Visualization Container */}
+            <div 
+              ref={containerRef}
+              className="relative border rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800"
+            >
+              <div className="flex items-center justify-center" style={{ minHeight: `${dimensions.height}px` }}>
+                {renderVisualization()}
+              </div>
+              
+              {/* Info Overlay */}
+              <div className="absolute top-4 left-4 space-y-2">
+                <Badge variant="outline" className="bg-background/90 backdrop-blur-sm">
+                  {processedGraph.nodes.length} nodes, {processedGraph.links.length} links
+                </Badge>
+                <Badge variant="outline" className="bg-background/90 backdrop-blur-sm">
+                  {currentMode.name}
+                </Badge>
+              </div>
+
+              {/* Controls Overlay */}
+              <div className="absolute top-4 right-4 flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleFullscreen}
+                  className="bg-background/90 backdrop-blur-sm"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Node Info Panel */}
+              <AnimatePresence>
+                {selectedNode && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 300 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 300 }}
+                    className="absolute bottom-4 right-4 w-72 bg-background/95 backdrop-blur-sm border rounded-lg p-4 shadow-xl"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-sm">Node Details</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedNode(null)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="font-medium">Name:</span> {selectedNode.name}
+                      </div>
+                      <div>
+                        <span className="font-medium">Type:</span> {selectedNode.type}
+                      </div>
+                      <div>
+                        <span className="font-medium">ID:</span> 
+                        <span className="text-xs text-muted-foreground ml-1">
+                          {selectedNode.id.length > 40 ? selectedNode.id.substring(0, 40) + '...' : selectedNode.id}
+                        </span>
+                      </div>
+                      {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (
+                        <div>
+                          <span className="font-medium">Properties:</span>
+                          <div className="mt-1 max-h-32 overflow-y-auto">
+                            {Object.entries(selectedNode.properties)
+                              .filter(([key]) => !key.startsWith('@'))
+                              .slice(0, 5)
+                              .map(([key, value]) => (
+                                <div key={key} className="text-xs text-muted-foreground">
+                                  <span className="font-medium">{key}:</span> {String(value).substring(0, 30)}...
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+
+            <div className="mt-4 text-sm text-muted-foreground">
+              <p>{currentMode.description}</p>
+              <div className="flex items-center gap-4 mt-2 flex-wrap">
+                <span>💡 Hover over nodes to highlight connections</span>
+                <span>🖱️ Click nodes for details</span>
+                <span>⌨️ Press ESC to exit fullscreen</span>
+                {currentMode.dimension === '3D' && <span>🔄 Drag to rotate view</span>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Fullscreen Modal */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background"
+          >
+            <div className="h-full w-full flex flex-col">
+              {/* Fullscreen Header */}
+              <div className="flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur-sm">
+                <div className="flex items-center gap-4">
+                  <Network className="w-6 h-6" />
+                  <h2 className="text-xl font-bold">Graph Visualization - Fullscreen</h2>
+                  <Badge variant="outline">{currentMode.name}</Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportGraph}
+                    disabled={!graphRef.current}
+                  >
+                    <Download className="w-4 h-4" />
+                    Export
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSettings(!showSettings)}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleFullscreen}
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                    Exit Fullscreen
+                  </Button>
+                </div>
+              </div>
+
+              {/* Fullscreen Settings */}
+              <AnimatePresence>
+                {showSettings && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="border-b p-4 bg-muted/30"
+                  >
+                    <div className="grid grid-cols-6 gap-4 items-center">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Visualization Mode</Label>
+                        <div className="flex gap-1">
+                          {VISUALIZATION_MODES.map((mode) => (
+                            <Button
+                              key={mode.id}
+                              variant={currentMode.id === mode.id ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentMode(mode)}
+                            >
+                              {mode.dimension}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Node Size: {nodeSize[0]}</Label>
+                        <Slider
+                          value={nodeSize}
+                          onValueChange={setNodeSize}
+                          max={20}
+                          min={2}
+                          step={1}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Link Opacity: {linkOpacity[0].toFixed(1)}</Label>
+                        <Slider
+                          value={linkOpacity}
+                          onValueChange={setLinkOpacity}
+                          max={1}
+                          min={0.1}
+                          step={0.1}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="fullscreen-show-labels"
+                          checked={showLabels}
+                          onCheckedChange={setShowLabels}
+                        />
+                        <Label htmlFor="fullscreen-show-labels" className="text-sm">
+                          Show Labels
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="fullscreen-show-links"
+                          checked={showLinks}
+                          onCheckedChange={setShowLinks}
+                        />
+                        <Label htmlFor="fullscreen-show-links" className="text-sm">
+                          Show Links
+                        </Label>
+                      </div>
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="block text-center">
+                          {processedGraph.nodes.length} nodes
+                        </Badge>
+                        <Badge variant="outline" className="block text-center">
+                          {processedGraph.links.length} links
+                        </Badge>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Fullscreen Visualization */}
+              <div className="flex-1 relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                <div className="h-full w-full flex items-center justify-center">
+                  {renderVisualization()}
+                </div>
+
+                {/* Fullscreen Node Info Panel */}
+                <AnimatePresence>
+                  {selectedNode && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="absolute top-4 right-4 w-80 bg-background/95 backdrop-blur-sm border rounded-lg p-6 shadow-xl"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-lg">Node Details</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedNode(null)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                      <div className="space-y-3 text-sm">
+                        <div>
+                          <span className="font-medium">Name:</span> 
+                          <p className="text-base font-semibold">{selectedNode.name}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Type:</span> 
+                          <Badge variant="secondary" className="ml-2">{selectedNode.type}</Badge>
+                        </div>
+                        <div>
+                          <span className="font-medium">ID:</span>
+                          <p className="text-xs text-muted-foreground break-all">
+                            {selectedNode.id}
+                          </p>
+                        </div>
+                        {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (
+                          <div>
+                            <span className="font-medium">Properties:</span>
+                            <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                              {Object.entries(selectedNode.properties)
+                                .filter(([key]) => !key.startsWith('@'))
+                                .slice(0, 8)
+                                .map(([key, value]) => (
+                                  <div key={key} className="text-xs bg-muted/50 p-2 rounded">
+                                    <span className="font-medium text-foreground">{key}:</span>
+                                    <p className="text-muted-foreground mt-1">
+                                      {String(value).substring(0, 100)}
+                                      {String(value).length > 100 ? '...' : ''}
+                                    </p>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
