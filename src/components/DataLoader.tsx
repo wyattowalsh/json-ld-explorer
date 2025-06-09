@@ -15,8 +15,7 @@ interface DataLoaderProps {
 }
 
 const DEFAULT_URLS = [
-  'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld',
-  'https://raw.githubusercontent.com/schemaorg/schemaorg/main/data/releases/3.1/all-layers.jsonld'
+  'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld'
 ];
 
 const FALLBACK_DATA = {
@@ -24,29 +23,51 @@ const FALLBACK_DATA = {
   "@graph": [
     {
       "@type": "Person",
-      "@id": "https://example.com/person/1",
+      "@id": "https://example.com/person/john-doe",
       "name": "John Doe",
-      "jobTitle": "Software Engineer",
+      "givenName": "John",
+      "familyName": "Doe",
+      "jobTitle": "Senior Software Engineer",
       "worksFor": {
         "@type": "Organization",
-        "@id": "https://example.com/org/1",
+        "@id": "https://example.com/org/tech-corp",
         "name": "Tech Corp",
-        "location": "San Francisco"
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "San Francisco",
+          "addressRegion": "CA"
+        }
       },
-      "knowsAbout": ["JavaScript", "React", "Node.js"],
+      "knowsAbout": ["JavaScript", "React", "Node.js", "TypeScript"],
       "alumniOf": {
         "@type": "EducationalOrganization",
-        "@id": "https://example.com/edu/1",
+        "@id": "https://example.com/edu/university-tech",
         "name": "University of Technology"
-      }
+      },
+      "colleague": "https://example.com/person/jane-smith"
     },
     {
       "@type": "Person",
-      "@id": "https://example.com/person/2",
+      "@id": "https://example.com/person/jane-smith",
       "name": "Jane Smith",
+      "givenName": "Jane",
+      "familyName": "Smith",
       "jobTitle": "Product Manager",
-      "worksFor": "https://example.com/org/1",
-      "knowsAbout": ["Product Strategy", "UX Design", "Data Analysis"]
+      "worksFor": "https://example.com/org/tech-corp",
+      "knowsAbout": ["Product Strategy", "UX Design", "Data Analysis", "Agile"],
+      "colleague": "https://example.com/person/john-doe"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://example.com/org/tech-corp",
+      "name": "Tech Corp",
+      "foundingDate": "2015",
+      "numberOfEmployees": 150,
+      "industry": "Technology",
+      "employee": [
+        "https://example.com/person/john-doe",
+        "https://example.com/person/jane-smith"
+      ]
     }
   ]
 };

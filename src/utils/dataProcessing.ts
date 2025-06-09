@@ -25,6 +25,23 @@ export class JSONLDProcessor {
       return this.flattenData(data['@graph']);
     }
     
+    // Handle nested contexts and objects
+    if (typeof data === 'object' && data !== null) {
+      const result = [data];
+      
+      // Look for nested arrays or objects that might contain entities
+      Object.values(data).forEach(value => {
+        if (Array.isArray(value)) {
+          result.push(...this.flattenData(value));
+        } else if (typeof value === 'object' && value !== null && 
+                   (value['@type'] || value.type || value['@id'] || value.id)) {
+          result.push(...this.flattenData(value));
+        }
+      });
+      
+      return result;
+    }
+    
     return [data];
   }
 
@@ -127,14 +144,45 @@ export class JSONLDProcessor {
   }
 
   private extractName(entity: JSONLDData): string {
-    return entity.name || 
-           entity.title || 
-           entity.label ||
-           entity['rdfs:label'] ||
-           entity['schema:name'] ||
-           entity['@id'] ||
-           entity.id ||
-           'Unnamed Entity';
+    // Try multiple common name fields
+    const nameFields = [
+      entity.name,
+      entity.title,
+      entity.label,
+      entity['rdfs:label'],
+      entity['schema:name'],
+      entity['foaf:name'],
+      entity.givenName,
+      entity.familyName,
+      entity.companyName,
+      entity.organizationName,
+      entity.jobTitle,
+      entity.roleName
+    ];
+    
+    for (const field of nameFields) {
+      if (field && typeof field === 'string') {
+        return field;
+      }
+    }
+    
+    // Combine first and last names if available
+    if (entity.givenName && entity.familyName) {
+      return `${entity.givenName} ${entity.familyName}`;
+    }
+    
+    // Extract from ID if it's a URL
+    if (entity['@id'] || entity.id) {
+      const id = entity['@id'] || entity.id;
+      if (typeof id === 'string') {
+        const extracted = this.extractNameFromUrl(id);
+        if (extracted && extracted !== id) {
+          return extracted;
+        }
+      }
+    }
+    
+    return entity['@type'] || entity.type || 'Unnamed Entity';
   }
 
   private extractNameFromUrl(url: string): string {

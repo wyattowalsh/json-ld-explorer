@@ -26,6 +26,24 @@ export function Dashboard() {
   const [processingState, setProcessingState] = useState<'idle' | 'processing' | 'complete'>('idle');
   const { toast } = useToast();
 
+  // Auto-load default data on component mount
+  useEffect(() => {
+    const loadDefaultData = async () => {
+      if (!data && processingState === 'idle') {
+        try {
+          const defaultData = await JSONLDProcessor.loadFromUrl(
+            'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld'
+          );
+          await processData(defaultData);
+        } catch (error) {
+          console.log('Failed to auto-load default data, showing loader instead');
+        }
+      }
+    };
+    
+    loadDefaultData();
+  }, []);
+
   const processData = async (jsonldData: JSONLDData | JSONLDData[]) => {
     setIsLoading(true);
     setProcessingState('processing');
