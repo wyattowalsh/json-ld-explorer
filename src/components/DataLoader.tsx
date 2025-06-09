@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, Link, Check, AlertCircle, Database } from 'lucide-react';
+import { Upload, Link, Check, AlertCircle, Database, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { JSONLDProcessor } from '@/utils/dataProcessing';
 import { JSONLDData } from '@/types';
@@ -73,19 +74,28 @@ const FALLBACK_DATA = [
 export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoaderProps) {
   const [customUrl, setCustomUrl] = useState('');
   const [urlError, setUrlError] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const { toast } = useToast();
 
   const loadData = async (url?: string) => {
     try {
       setUrlError('');
+      setLoadingProgress(10);
+      setLoadingMessage('Initializing...');
+      
       let data = null;
       
       if (url) {
         console.log('Loading data from URL:', url);
+        setLoadingProgress(30);
+        setLoadingMessage('Fetching data from URL...');
         // Try loading from specific URL
         data = await JSONLDProcessor.loadFromUrl(url);
       } else {
         console.log('Loading default data from:', DEFAULT_URLS);
+        setLoadingProgress(30);
+        setLoadingMessage('Fetching default dataset...');
         // Try default URLs in sequence
         let lastError;
         for (const defaultUrl of DEFAULT_URLS) {
@@ -104,6 +114,8 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
         // If all URLs fail, use fallback data
         if (!data) {
           console.warn('All default URLs failed, using fallback data:', lastError);
+          setLoadingProgress(60);
+          setLoadingMessage('Using fallback data...');
           data = FALLBACK_DATA;
           toast({
             title: "Using fallback data",
@@ -113,13 +125,21 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
         }
       }
       
+      setLoadingProgress(70);
+      setLoadingMessage('Validating data structure...');
       console.log('Validating loaded data:', data);
       if (!JSONLDProcessor.validateJSONLD(data)) {
         throw new Error('Invalid JSON-LD format');
       }
 
+      setLoadingProgress(90);
+      setLoadingMessage('Processing completed...');
       console.log('Calling onDataLoaded with:', data);
       onDataLoaded(data);
+      
+      setLoadingProgress(100);
+      setLoadingMessage('Data loaded successfully!');
+      
       toast({
         title: "Data loaded successfully",
         description: `Loaded ${Array.isArray(data) ? data.length : 1} entities`,
@@ -128,12 +148,18 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
       console.error('Error in loadData:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load data';
       setUrlError(errorMessage);
+      setLoadingProgress(0);
+      setLoadingMessage('');
       
       // If loading fails, try fallback data as last resort
       console.log('Loading failed, using fallback data as last resort');
       try {
+        setLoadingProgress(50);
+        setLoadingMessage('Switching to fallback data...');
         if (JSONLDProcessor.validateJSONLD(FALLBACK_DATA)) {
           onDataLoaded(FALLBACK_DATA);
+          setLoadingProgress(100);
+          setLoadingMessage('Fallback data loaded');
           toast({
             title: "Using fallback data",
             description: "Original data failed to load, using demo data instead",
@@ -144,6 +170,8 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
         }
       } catch (fallbackError) {
         console.error('Even fallback data failed:', fallbackError);
+        setLoadingProgress(0);
+        setLoadingMessage('');
         toast({
           title: "Error loading data",
           description: errorMessage,
@@ -252,11 +280,10 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
               size="lg"
             >
               {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                />
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Loading...
+                </>
               ) : (
                 <>
                   <Check className="w-4 h-4 mr-2" />
@@ -264,6 +291,14 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
                 </>
               )}
             </Button>
+            {isLoading && loadingProgress > 0 && (
+              <div className="space-y-2">
+                <Progress value={loadingProgress} className="w-full" />
+                <p className="text-xs text-muted-foreground text-center">
+                  {loadingMessage}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -303,8 +338,17 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
                 variant="outline"
                 size="lg"
               >
-                <Link className="w-4 h-4 mr-2" />
-                Load from URL
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Link className="w-4 h-4 mr-2" />
+                    Load from URL
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>

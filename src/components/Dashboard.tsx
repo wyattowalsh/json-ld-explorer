@@ -267,21 +267,51 @@ export function Dashboard() {
             >
               <Card className="w-96">
                 <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    >
-                      <RefreshCw className="w-6 h-6 text-blue-600" />
-                    </motion.div>
-                    <div>
-                      <h3 className="font-semibold">Processing Data...</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {processingState === 'processing' 
-                          ? 'Analyzing your JSON-LD data and building the graph...'
-                          : 'Loading...'
-                        }
-                      </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <RefreshCw className="w-6 h-6 text-blue-600" />
+                      </motion.div>
+                      <div>
+                        <h3 className="font-semibold">Processing Data...</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {processingState === 'processing' 
+                            ? 'Analyzing your JSON-LD data and building the graph...'
+                            : 'Loading and validating data...'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Processing steps indicator */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Processing Steps</span>
+                        <span>{processingState}</span>
+                      </div>
+                      <div className="flex space-x-1">
+                        <motion.div 
+                          className={`h-2 w-8 rounded ${processingState !== 'idle' ? 'bg-blue-500' : 'bg-muted'}`}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.1 }}
+                        />
+                        <motion.div 
+                          className={`h-2 w-8 rounded ${processingState === 'processing' || processingState === 'complete' ? 'bg-blue-500' : 'bg-muted'}`}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.3 }}
+                        />
+                        <motion.div 
+                          className={`h-2 w-8 rounded ${processingState === 'complete' ? 'bg-green-500' : 'bg-muted'}`}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.5 }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
