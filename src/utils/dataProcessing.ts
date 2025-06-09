@@ -457,14 +457,52 @@ export class JSONLDProcessor {
 
   public static async loadFromUrl(url: string): Promise<JSONLDData | JSONLDData[]> {
     try {
-      const response = await fetch(url);
+      console.log('Fetching data from:', url);
+      
+      // Add CORS proxy for external URLs if needed
+      let fetchUrl = url;
+      if (url.startsWith('https://gist.githubusercontent.com')) {
+        // Try direct first, then with CORS proxy if it fails
+        try {
+          const directResponse = await fetch(url, {
+            mode: 'cors',
+            headers: {
+              'Accept': 'application/json, application/ld+json, text/plain, */*'
+            }
+          });
+          if (!directResponse.ok) {
+            throw new Error(`HTTP error! status: ${directResponse.status}`);
+          }
+          const data = await directResponse.json();
+          console.log('Successfully loaded data directly:', data);
+          return data;
+        } catch (directError) {
+          console.warn('Direct fetch failed, trying CORS proxy:', directError);
+          fetchUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        }
+      }
+      
+      const response = await fetch(fetchUrl, {
+        headers: {
+          'Accept': 'application/json, application/ld+json, text/plain, */*'
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data = await response.json();
+      
+      let data = await response.json();
+      
+      // Handle CORS proxy response
+      if (fetchUrl.includes('allorigins.win') && data.contents) {
+        data = JSON.parse(data.contents);
+      }
+      
+      console.log('Successfully loaded data:', data);
       return data;
     } catch (error) {
-      console.error('Error loading JSON-LD data:', error);
+      console.error('Error loading JSON-LD data from', url, ':', error);
       throw error;
     }
   }
@@ -472,8 +510,20 @@ export class JSONLDProcessor {
   public static validateJSONLD(data: any): boolean {
     if (!data) return false;
     
-    const entities = Array.isArray(data) ? data : [data];
-    return entities.every(entity => 
+    // Handle various JSON-LD formats
+    let entities = [];
+    
+    if (Array.isArray(data)) {
+      entities = data;
+    } else if (data['@graph'] && Array.isArray(data['@graph'])) {
+      entities = data['@graph'];
+    } else if (typeof data === 'object' && data !== null) {
+      entities = [data];
+    } else {
+      return false;
+    }
+    
+    return entities.length > 0 && entities.every(entity => 
       typeof entity === 'object' && 
       entity !== null &&
       Object.keys(entity).length > 0

@@ -81,16 +81,21 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
       let data;
       
       if (url) {
+        console.log('Loading data from URL:', url);
         // Try loading from specific URL
         data = await JSONLDProcessor.loadFromUrl(url);
       } else {
+        console.log('Loading default data from:', DEFAULT_URLS);
         // Try default URLs in sequence
         let lastError;
         for (const defaultUrl of DEFAULT_URLS) {
           try {
+            console.log('Attempting to load from:', defaultUrl);
             data = await JSONLDProcessor.loadFromUrl(defaultUrl);
+            console.log('Successfully loaded data from:', defaultUrl);
             break;
           } catch (error) {
+            console.warn('Failed to load from:', defaultUrl, error);
             lastError = error;
             continue;
           }
@@ -108,31 +113,57 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
         }
       }
       
+      console.log('Validating loaded data:', data);
       if (!JSONLDProcessor.validateJSONLD(data)) {
         throw new Error('Invalid JSON-LD format');
       }
 
+      console.log('Calling onDataLoaded with:', data);
       onDataLoaded(data);
       toast({
         title: "Data loaded successfully",
         description: `Loaded ${Array.isArray(data) ? data.length : 1} entities`,
       });
     } catch (error) {
+      console.error('Error in loadData:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load data';
       setUrlError(errorMessage);
-      toast({
-        title: "Error loading data",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      
+      // If URL loading fails, try fallback data
+      if (url || !data) {
+        console.log('Loading failed, using fallback data');
+        try {
+          onDataLoaded(FALLBACK_DATA);
+          toast({
+            title: "Using fallback data",
+            description: "Original data failed to load, using demo data instead",
+            variant: "default",
+          });
+        } catch (fallbackError) {
+          console.error('Even fallback data failed:', fallbackError);
+          toast({
+            title: "Error loading data",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Error loading data",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const handleLoadDefault = () => {
-    loadData();
+  const handleLoadDefault = async () => {
+    console.log('handleLoadDefault called');
+    await loadData();
   };
 
-  const handleLoadCustom = () => {
+  const handleLoadCustom = async () => {
+    console.log('handleLoadCustom called with URL:', customUrl);
     if (!customUrl.trim()) {
       setUrlError('Please enter a valid URL');
       return;
@@ -140,7 +171,7 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
 
     try {
       new URL(customUrl);
-      loadData(customUrl);
+      await loadData(customUrl);
     } catch {
       setUrlError('Please enter a valid URL');
     }
