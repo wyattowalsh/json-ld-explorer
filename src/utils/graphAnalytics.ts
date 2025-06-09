@@ -13,6 +13,11 @@ export class GraphAnalyticsEngine {
   }
 
   private buildAdjacencyList(): void {
+    if (!this.graph || !this.graph.nodes || !this.graph.links) {
+      console.warn('Invalid graph structure provided, skipping buildAdjacencyList');
+      return;
+    }
+
     this.graph.nodes.forEach(node => {
       this.adjacencyList.set(node.id, new Set());
       this.nodeMap.set(node.id, node);
@@ -21,7 +26,7 @@ export class GraphAnalyticsEngine {
     this.graph.links.forEach(link => {
       const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
       const targetId = typeof link.target === 'string' ? link.target : link.target.id;
-      
+
       this.adjacencyList.get(sourceId)?.add(targetId);
       this.adjacencyList.get(targetId)?.add(sourceId);
     });
@@ -32,7 +37,7 @@ export class GraphAnalyticsEngine {
     const linkCount = this.graph.links.length;
     const density = this.calculateDensity();
     const degrees = this.calculateDegrees();
-    
+
     return {
       nodeCount,
       linkCount,
@@ -61,11 +66,11 @@ export class GraphAnalyticsEngine {
 
   private calculateDegrees(): Record<string, number> {
     const degrees: Record<string, number> = {};
-    
+
     this.graph.nodes.forEach(node => {
       degrees[node.id] = this.adjacencyList.get(node.id)?.size || 0;
     });
-    
+
     return degrees;
   }
 
@@ -81,7 +86,7 @@ export class GraphAnalyticsEngine {
     this.graph.nodes.forEach(node => {
       const neighbors = Array.from(this.adjacencyList.get(node.id) || []);
       const degree = neighbors.length;
-      
+
       if (degree < 2) return;
 
       let triangles = 0;
@@ -104,7 +109,7 @@ export class GraphAnalyticsEngine {
   private calculateBetweennessCentrality(): Record<string, number> {
     const betweenness: Record<string, number> = {};
     const nodes = Array.from(this.nodeMap.keys());
-    
+
     nodes.forEach(nodeId => {
       betweenness[nodeId] = 0;
     });
@@ -129,17 +134,17 @@ export class GraphAnalyticsEngine {
       while (queue.length > 0) {
         const current = queue.shift()!;
         stack.push(current);
-        
+
         const neighbors = Array.from(this.adjacencyList.get(current) || []);
         neighbors.forEach(neighbor => {
           const currentDist = distances.get(current)!;
           const neighborDist = distances.get(neighbor)!;
-          
+
           if (neighborDist < 0) {
             queue.push(neighbor);
             distances.set(neighbor, currentDist + 1);
           }
-          
+
           if (distances.get(neighbor) === currentDist + 1) {
             pathCounts.set(neighbor, pathCounts.get(neighbor)! + pathCounts.get(current)!);
             predecessors.get(neighbor)!.push(current);
@@ -153,12 +158,12 @@ export class GraphAnalyticsEngine {
       while (stack.length > 0) {
         const current = stack.pop()!;
         const currentPreds = predecessors.get(current)!;
-        
+
         currentPreds.forEach(pred => {
           const contribution = (pathCounts.get(pred)! / pathCounts.get(current)!) * (1 + delta.get(current)!);
           delta.set(pred, delta.get(pred)! + contribution);
         });
-        
+
         if (current !== source) {
           betweenness[current] += delta.get(current)!;
         }
@@ -168,7 +173,7 @@ export class GraphAnalyticsEngine {
     // Normalize
     const n = nodes.length;
     const normFactor = n > 2 ? 2 / ((n - 1) * (n - 2)) : 1;
-    
+
     Object.keys(betweenness).forEach(nodeId => {
       betweenness[nodeId] *= normFactor;
     });
@@ -242,7 +247,7 @@ export class GraphAnalyticsEngine {
     // Simple community detection using modularity optimization
     const communities: Record<string, number> = {};
     const nodes = Array.from(this.nodeMap.keys());
-    
+
     // Initialize each node in its own community
     nodes.forEach((nodeId, index) => {
       communities[nodeId] = index;
@@ -251,20 +256,20 @@ export class GraphAnalyticsEngine {
     let improved = true;
     while (improved) {
       improved = false;
-      
+
       nodes.forEach(nodeId => {
         const neighbors = Array.from(this.adjacencyList.get(nodeId) || []);
         const communityScores: Record<number, number> = {};
-        
+
         neighbors.forEach(neighbor => {
           const community = communities[neighbor];
           communityScores[community] = (communityScores[community] || 0) + 1;
         });
-        
+
         const bestCommunity = Object.entries(communityScores).reduce((best, [community, score]) => {
           return score > best.score ? { community: parseInt(community), score } : best;
         }, { community: communities[nodeId], score: 0 });
-        
+
         if (bestCommunity.community !== communities[nodeId] && bestCommunity.score > 0) {
           communities[nodeId] = bestCommunity.community;
           improved = true;

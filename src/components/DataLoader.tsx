@@ -78,7 +78,7 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
   const loadData = async (url?: string) => {
     try {
       setUrlError('');
-      let data;
+      let data = null;
       
       if (url) {
         console.log('Loading data from URL:', url);
@@ -129,25 +129,21 @@ export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoa
       const errorMessage = error instanceof Error ? error.message : 'Failed to load data';
       setUrlError(errorMessage);
       
-      // If URL loading fails, try fallback data
-      if (url || !data) {
-        console.log('Loading failed, using fallback data');
-        try {
+      // If loading fails, try fallback data as last resort
+      console.log('Loading failed, using fallback data as last resort');
+      try {
+        if (JSONLDProcessor.validateJSONLD(FALLBACK_DATA)) {
           onDataLoaded(FALLBACK_DATA);
           toast({
             title: "Using fallback data",
             description: "Original data failed to load, using demo data instead",
             variant: "default",
           });
-        } catch (fallbackError) {
-          console.error('Even fallback data failed:', fallbackError);
-          toast({
-            title: "Error loading data",
-            description: errorMessage,
-            variant: "destructive",
-          });
+        } else {
+          throw new Error('Even fallback data is invalid');
         }
-      } else {
+      } catch (fallbackError) {
+        console.error('Even fallback data failed:', fallbackError);
         toast({
           title: "Error loading data",
           description: errorMessage,

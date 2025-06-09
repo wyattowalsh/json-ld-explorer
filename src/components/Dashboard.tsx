@@ -34,12 +34,21 @@ export function Dashboard() {
       setProcessingState('processing');
       setData(loadedData);
 
+      console.log('Processing loaded data:', loadedData);
+
       // Process the data
       const processor = new JSONLDProcessor();
       const processedGraph = processor.processJSONLD(loadedData);
+      
+      console.log('Generated graph:', processedGraph);
+      
+      if (!processedGraph || !processedGraph.nodes || !processedGraph.links) {
+        throw new Error('Failed to generate valid graph from data');
+      }
+
       const stats = processor.generateDataStats(loadedData);
 
-      // Generate analytics
+      // Generate analytics only if we have a valid graph
       const analyticsEngine = new GraphAnalyticsEngine();
       const analytics = analyticsEngine.analyzeGraph(processedGraph);
 
@@ -56,10 +65,14 @@ export function Dashboard() {
       console.error('Error processing data:', error);
       toast({
         title: "Processing failed",
-        description: "There was an error processing your JSON-LD data.",
+        description: error instanceof Error ? error.message : "There was an error processing your JSON-LD data.",
         variant: "destructive",
       });
       setProcessingState('idle');
+      setData(null);
+      setGraph(null);
+      setDataStats(null);
+      setGraphAnalytics(null);
     } finally {
       setIsLoading(false);
     }
