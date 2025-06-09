@@ -369,13 +369,21 @@ export function GraphVisualization({ graph }: GraphVisualizationProps) {
         <ForceGraph3D
           {...commonProps}
           nodeThreeObject={(node: any) => {
-            const geometry = new (window as any).THREE.SphereGeometry(node.size || 5);
-            const material = new (window as any).THREE.MeshLambertMaterial({ 
-              color: node.color || '#69b3a2',
-              transparent: true,
-              opacity: highlightNodes.has(node.id) ? 1 : 0.8
-            });
-            return new (window as any).THREE.Mesh(geometry, material);
+            try {
+              if (typeof window !== 'undefined' && (window as any).THREE) {
+                const THREE = (window as any).THREE;
+                const geometry = new THREE.SphereGeometry(node.size || 5, 16, 12);
+                const material = new THREE.MeshLambertMaterial({ 
+                  color: node.color || '#69b3a2',
+                  transparent: true,
+                  opacity: highlightNodes.has(node.id) ? 1 : 0.8
+                });
+                return new THREE.Mesh(geometry, material);
+              }
+            } catch (error) {
+              console.warn('Three.js not available for custom node rendering');
+            }
+            return undefined; // Fallback to default rendering
           }}
           linkOpacity={linkOpacity[0]}
           showNavInfo={false}

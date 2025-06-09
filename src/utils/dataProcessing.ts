@@ -118,33 +118,94 @@ export class JSONLDProcessor {
         // Process nested objects as child entities
         this.processEntity(value, sourceId);
       }
-    } else if (typeof value === 'string' && value.startsWith('http')) {
-      // Handle URL references as potential linked entities
-      const targetId = value;
-      if (!this.nodeMap.has(targetId)) {
-        const urlNode: GraphNode = {
-          id: targetId,
-          name: this.extractNameFromUrl(targetId),
-          type: 'Reference',
-          properties: { url: targetId },
+    } else if (typeof value === 'string') {
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        // Handle URL references as potential linked entities
+        const targetId = value;
+        if (!this.nodeMap.has(targetId)) {
+          const urlNode: GraphNode = {
+            id: targetId,
+            name: this.extractNameFromUrl(targetId),
+            type: 'Reference',
+            properties: { url: targetId },
+            size: 3,
+            group: this.getTypeGroup('Reference'),
+            color: this.getTypeColor('Reference')
+          };
+          this.nodeMap.set(targetId, urlNode);
+        }
+        
+        this.links.push({
+          source: sourceId,
+          target: targetId,
+          type: relationshipType,
+          weight: 0.5
+        });
+      } else if (value.trim() && !relationshipType.startsWith('@')) {
+        // Create leaf nodes for meaningful string values
+        const leafId = `${sourceId}_${relationshipType}_${value}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+        if (!this.nodeMap.has(leafId)) {
+          const leafNode: GraphNode = {
+            id: leafId,
+            name: this.extractName(value),
+            type: 'Value',
+            properties: { value: value, sourceProperty: relationshipType },
+            size: 4,
+            group: this.getTypeGroup('Value'),
+            color: this.getTypeColor('Value')
+          };
+          this.nodeMap.set(leafId, leafNode);
+        }
+        
+        this.links.push({
+          source: sourceId,
+          target: leafId,
+          type: relationshipType,
+          weight: 0.3
+        });
+      }
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      // Create leaf nodes for primitive values
+      const leafId = `${sourceId}_${relationshipType}_${value}`;
+      if (!this.nodeMap.has(leafId)) {
+        const leafNode: GraphNode = {
+          id: leafId,
+          name: String(value),
+          type: typeof value === 'number' ? 'Number' : 'Boolean',
+          properties: { value: value, sourceProperty: relationshipType },
           size: 3,
-          group: this.getTypeGroup('Reference'),
-          color: this.getTypeColor('Reference')
+          group: this.getTypeGroup('Value'),
+          color: this.getTypeColor('Value')
         };
-        this.nodeMap.set(targetId, urlNode);
+        this.nodeMap.set(leafId, leafNode);
       }
       
       this.links.push({
         source: sourceId,
-        target: targetId,
+        target: leafId,
         type: relationshipType,
-        weight: 0.5
+        weight: 0.2
       });
     }
   }
 
   private extractName(entity: JSONLDData): string {
-    // Try multiple common name fields
+    // Handle string values directly (leaf nodes)
+    if (typeof entity === 'string') {
+      return this.extractNameFromUrl(entity);
+    }
+    
+    // Handle array of values
+    if (Array.isArray(entity)) {
+      return entity.length > 0 ? this.extractName(entity[0]) : 'Array Value';
+    }
+    
+    // Handle non-object entities
+    if (!entity || typeof entity !== 'object') {
+      return String(entity) || 'Unknown Value';
+    }
+    
+    // Try multiple common name fields with better handling
     const nameFields = [
       entity.name,
       entity.title,
@@ -152,23 +213,56 @@ export class JSONLDProcessor {
       entity['rdfs:label'],
       entity['schema:name'],
       entity['foaf:name'],
+      entity['dc:title'],
+      entity['dcterms:title'],
       entity.givenName,
       entity.familyName,
+      entity.firstName,
+      entity.lastName,
       entity.companyName,
       entity.organizationName,
       entity.jobTitle,
-      entity.roleName
+      entity.roleName,
+      entity.description,
+      entity['rdfs:comment']
     ];
     
     for (const field of nameFields) {
-      if (field && typeof field === 'string') {
-        return field;
+      if (field) {
+        if (typeof field === 'string' && field.trim()) {
+          return field.trim();
+        }
+        if (typeof field === 'object' && field['@value']) {
+          return String(field['@value']).trim();
+        }
+        if (Array.isArray(field) && field.length > 0) {
+          const firstValue = field[0];
+          if (typeof firstValue === 'string') {
+            return firstValue.trim();
+          }
+          if (typeof firstValue === 'object' && firstValue['@value']) {
+            return String(firstValue['@value']).trim();
+          }
+        }
       }
     }
     
     // Combine first and last names if available
-    if (entity.givenName && entity.familyName) {
-      return `${entity.givenName} ${entity.familyName}`;
+    const firstName = entity.givenName || entity.firstName;
+    const lastName = entity.familyName || entity.lastName;
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`.trim();
+    }
+    
+    // Try to extract meaningful name from any property that looks like a name
+    for (const [key, value] of Object.entries(entity)) {
+      if (key.toLowerCase().includes('name') || 
+          key.toLowerCase().includes('title') || 
+          key.toLowerCase().includes('label')) {
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+      }
     }
     
     // Extract from ID if it's a URL
@@ -176,24 +270,73 @@ export class JSONLDProcessor {
       const id = entity['@id'] || entity.id;
       if (typeof id === 'string') {
         const extracted = this.extractNameFromUrl(id);
-        if (extracted && extracted !== id) {
+        if (extracted && extracted !== id && extracted.length > 1) {
           return extracted;
         }
       }
     }
     
-    return entity['@type'] || entity.type || 'Unnamed Entity';
+    // Use type as fallback, but make it more readable
+    const type = entity['@type'] || entity.type;
+    if (type) {
+      if (typeof type === 'string') {
+        return this.makeReadableType(type);
+      }
+      if (Array.isArray(type) && type.length > 0) {
+        return this.makeReadableType(String(type[0]));
+      }
+    }
+    
+    return 'Unnamed Entity';
   }
 
   private extractNameFromUrl(url: string): string {
+    if (!url || typeof url !== 'string') {
+      return String(url) || 'Unknown';
+    }
+    
     try {
       const urlObj = new URL(url);
       const pathname = urlObj.pathname;
       const segments = pathname.split('/').filter(Boolean);
-      return segments[segments.length - 1] || urlObj.hostname;
+      const lastSegment = segments[segments.length - 1];
+      
+      if (lastSegment) {
+        // Decode URI component and clean up
+        const decoded = decodeURIComponent(lastSegment);
+        // Replace common separators with spaces and capitalize
+        return decoded
+          .replace(/[-_]/g, ' ')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/\b\w/g, l => l.toUpperCase())
+          .trim();
+      }
+      
+      return urlObj.hostname.replace(/^www\./, '');
     } catch {
-      return url;
+      // Not a valid URL, treat as identifier
+      const cleaned = url
+        .replace(/^.*[#\/]/, '') // Remove everything before last # or /
+        .replace(/[-_]/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, l => l.toUpperCase())
+        .trim();
+      
+      return cleaned || url;
     }
+  }
+
+  private makeReadableType(type: string): string {
+    if (!type) return 'Entity';
+    
+    // Remove namespace prefixes
+    const withoutNamespace = type.replace(/^.*[#\/:]/, '');
+    
+    // Add spaces before capital letters and capitalize
+    return withoutNamespace
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\b\w/g, l => l.toUpperCase())
+      .trim() || 'Entity';
   }
 
   private calculateNodeSize(entity: JSONLDData): number {
@@ -229,7 +372,10 @@ export class JSONLDProcessor {
       'Service': '#98D8C8',
       'Action': '#F7DC6F',
       'Thing': '#AED6F1',
-      'Reference': '#E67E22'
+      'Reference': '#E67E22',
+      'Value': '#BDC3C7',
+      'Number': '#3498DB',
+      'Boolean': '#9B59B6'
     };
     
     return typeColors[type] || '#95A5A6';
