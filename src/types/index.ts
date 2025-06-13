@@ -2,14 +2,14 @@ export interface JSONLDData {
   '@context'?: string | object;
   '@type'?: string;
   '@id'?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface GraphNode {
   id: string;
   name: string;
   type: string;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   x?: number;
   y?: number;
   z?: number;

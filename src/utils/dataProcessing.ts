@@ -48,9 +48,8 @@ export class JSONLDProcessor {
       Object.values(data).forEach(value => {
         if (Array.isArray(value)) {
           result.push(...this.flattenData(value));
-        } else if (typeof value === 'object' && value !== null && 
-                   (value['@type'] || value.type || value['@id'] || value.id)) {
-          result.push(...this.flattenData(value));
+        } else if (this.isJSONLDObject(value)) {
+          result.push(...this.flattenData(value as JSONLDData));
         }
       });
       
@@ -76,8 +75,8 @@ export class JSONLDProcessor {
       return;
     }
 
-    const id = entity['@id'] || entity.id || this.generateId();
-    const type = entity['@type'] || entity.type || 'Unknown';
+    const id = String(entity['@id'] || entity.id || this.generateId());
+    const type = String(entity['@type'] || entity.type || 'Unknown');
     
     const node: GraphNode = {
       id,
@@ -115,10 +114,11 @@ export class JSONLDProcessor {
     });
   }
 
-  private processRelationshipValue(sourceId: string, relationshipType: string, value: any): void {
+  private processRelationshipValue(sourceId: string, relationshipType: string, value: unknown): void {
     if (typeof value === 'object' && value !== null) {
-      if (value['@id'] || value.id) {
-        const targetId = value['@id'] || value.id;
+      const obj = value as Record<string, unknown>;
+      if (obj['@id'] || obj.id) {
+        const targetId = String(obj['@id'] || obj.id);
         this.links.push({
           source: sourceId,
           target: targetId,
@@ -126,12 +126,12 @@ export class JSONLDProcessor {
           weight: 1
         });
         
-        if (!this.nodeMap.has(targetId)) {
-          this.processEntity(value);
+        if (!this.nodeMap.has(targetId) && this.isJSONLDObject(value)) {
+          this.processEntity(value as JSONLDData);
         }
-      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+      } else if (Object.keys(obj).length > 0 && this.isJSONLDObject(value)) {
         // Process nested objects as child entities
-        this.processEntity(value, sourceId);
+        this.processEntity(value as JSONLDData, sourceId);
       }
     } else if (typeof value === 'string') {
       if (value.startsWith('http://') || value.startsWith('https://')) {
@@ -162,7 +162,7 @@ export class JSONLDProcessor {
         if (!this.nodeMap.has(leafId)) {
           const leafNode: GraphNode = {
             id: leafId,
-            name: this.extractName(value),
+            name: String(value),
             type: 'Value',
             properties: { value: value, sourceProperty: relationshipType },
             size: 4,
@@ -247,16 +247,22 @@ export class JSONLDProcessor {
         if (typeof field === 'string' && field.trim()) {
           return field.trim();
         }
-        if (typeof field === 'object' && field['@value']) {
-          return String(field['@value']).trim();
+        if (typeof field === 'object' && field !== null) {
+          const obj = field as Record<string, unknown>;
+          if (obj['@value']) {
+            return String(obj['@value']).trim();
+          }
         }
         if (Array.isArray(field) && field.length > 0) {
           const firstValue = field[0];
           if (typeof firstValue === 'string') {
             return firstValue.trim();
           }
-          if (typeof firstValue === 'object' && firstValue['@value']) {
-            return String(firstValue['@value']).trim();
+          if (typeof firstValue === 'object' && firstValue !== null) {
+            const obj = firstValue as Record<string, unknown>;
+            if (obj['@value']) {
+              return String(obj['@value']).trim();
+            }
           }
         }
       }
@@ -331,7 +337,7 @@ export class JSONLDProcessor {
     } catch {
       // Not a valid URL, treat as identifier
       const cleaned = url
-        .replace(/^.*[#\/]/, '') // Remove everything before last # or /
+        .replace(/^.*[#/]/, '') // Remove everything before last # or /
         .replace(/[-_]/g, ' ')
         .replace(/([a-z])([A-Z])/g, '$1 $2')
         .replace(/\b\w/g, l => l.toUpperCase())
@@ -345,7 +351,7 @@ export class JSONLDProcessor {
     if (!type) return 'Entity';
     
     // Remove namespace prefixes
-    const withoutNamespace = type.replace(/^.*[#\/:]/, '');
+    const withoutNamespace = type.replace(/^.*[#/:]/, '');
     
     // Add spaces before capital letters and capitalize
     return withoutNamespace
@@ -414,7 +420,7 @@ export class JSONLDProcessor {
     const relationshipTypes: Record<string, number> = {};
 
     entities.forEach(entity => {
-      const type = entity['@type'] || entity.type || 'Unknown';
+      const type = String(entity['@type'] || entity.type || 'Unknown');
       entityTypes[type] = (entityTypes[type] || 0) + 1;
 
       Object.keys(entity).forEach(key => {
@@ -429,7 +435,6 @@ export class JSONLDProcessor {
     });
 
     const totalProperties = Object.values(propertyCount).reduce((sum, count) => sum + count, 0);
-    const uniqueProperties = Object.keys(propertyCount).length;
     
     return {
       totalEntities: entities.length,
@@ -507,18 +512,21 @@ export class JSONLDProcessor {
     }
   }
 
-  public static validateJSONLD(data: any): boolean {
+  public static validateJSONLD(data: unknown): boolean {
     if (!data) return false;
     
     // Handle various JSON-LD formats
-    let entities = [];
+    let entities: unknown[] = [];
     
     if (Array.isArray(data)) {
       entities = data;
-    } else if (data['@graph'] && Array.isArray(data['@graph'])) {
-      entities = data['@graph'];
     } else if (typeof data === 'object' && data !== null) {
-      entities = [data];
+      const obj = data as Record<string, unknown>;
+      if (obj['@graph'] && Array.isArray(obj['@graph'])) {
+        entities = obj['@graph'];
+      } else {
+        entities = [data];
+      }
     } else {
       return false;
     }
@@ -529,4 +537,17 @@ export class JSONLDProcessor {
       Object.keys(entity).length > 0
     );
   }
+
+  // Type guard helper
+  private isJSONLDObject(value: unknown): value is JSONLDData {
+    if (typeof value !== 'object' || value === null) return false;
+    const obj = value as Record<string, unknown>;
+    return '@type' in obj || 'type' in obj || '@id' in obj || 'id' in obj;
+  }
+}
+
+// Simple function to process JSON-LD data into a graph
+export function processJsonLdData(data: object): Graph {
+  const processor = new JSONLDProcessor();
+  return processor.processJSONLD(data as JSONLDData | JSONLDData[]);
 }

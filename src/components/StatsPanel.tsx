@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, RadialBarChart, RadialBar,
+  PieChart, Pie, Cell, RadialBarChart, RadialBar,
   ScatterChart, Scatter, Area, AreaChart, Legend
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Users, Network, Share2, Zap, TrendingUp, Target,
   Activity, GitBranch, Layers, Globe, BarChart3, PieChart as PieChartIcon,
-  Maximize2, Download, TrendingDown
+  Maximize2, Download
 } from 'lucide-react';
 import { DataStats, GraphAnalytics } from '@/types';
 
@@ -23,15 +23,26 @@ interface StatsPanelProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0'];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    color: string;
+    dataKey: string;
+    value: number;
+    payload?: { percentage?: number };
+  }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
         <p className="font-medium">{`${label}`}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index: number) => (
           <p key={index} style={{ color: entry.color }}>
             {`${entry.dataKey}: ${entry.value}`}
-            {entry.payload.percentage && ` (${entry.payload.percentage}%)`}
+            {entry.payload?.percentage && ` (${entry.payload.percentage}%)`}
           </p>
         ))}
       </div>
@@ -204,7 +215,7 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-fluid-md">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Entity Types Distribution */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -282,7 +293,7 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
                           <Legend 
                             verticalAlign="bottom" 
                             height={36}
-                            formatter={(value, entry) => `${value} (${entry.payload.percentage}%)`}
+                            formatter={(value) => `${value}`}
                           />
                         </PieChart>
                       ) : (
@@ -307,7 +318,7 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
                     </ResponsiveContainer>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {entityTypeData.map((item, index) => (
+                    {entityTypeData.map((item) => (
                       <motion.div
                         key={item.name}
                         whileHover={{ scale: 1.05 }}
@@ -681,7 +692,8 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
               <div className="flex-1 p-6">
                 <div id={`fullscreen-${fullscreenChart}-chart`} className="h-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    {fullscreenChart === 'entityTypes' && activeChartType.entityTypes === 'pie' && (
+                    <>
+                      {fullscreenChart === 'entityTypes' && activeChartType.entityTypes === 'pie' && (
                       <PieChart>
                         <Pie
                           data={entityTypeData}
@@ -706,8 +718,8 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
                           verticalAlign="bottom" 
                           height={60}
                           formatter={(value, entry) => (
-                            <span style={{ color: entry.color, fontSize: '14px' }}>
-                              {value} ({entry.payload.percentage}%)
+                            <span style={{ color: entry.color || '#000', fontSize: '14px' }}>
+                              {value} ({(entry.payload as { percentage?: number })?.percentage || 0}%)
                             </span>
                           )}
                         />
@@ -795,6 +807,7 @@ export function StatsPanel({ dataStats, graphAnalytics }: StatsPanelProps) {
                         />
                       </AreaChart>
                     )}
+                    </>
                   </ResponsiveContainer>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { Graph, GraphAnalytics, GraphNode, GraphLink } from '@/types';
+import { Graph, GraphAnalytics, GraphNode } from '@/types';
 
 export class GraphAnalyticsEngine {
   private graph: Graph;

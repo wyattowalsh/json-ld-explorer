@@ -1,421 +1,517 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Upload, Link, Check, AlertCircle, Database, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
-import { JSONLDProcessor } from '@/utils/dataProcessing';
-import { JSONLDData } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+
+// Icons
+import {
+  Upload, FileText, Link, Code, Check, X, AlertCircle,
+  Loader2, Download, Copy, Eye, EyeOff, Sparkles, CheckCircle
+} from 'lucide-react';
+
+// Default URL for auto-loading
+const DEFAULT_URL = 'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld';
 
 interface DataLoaderProps {
-  onDataLoaded: (data: JSONLDData | JSONLDData[]) => void;
-  isLoading: boolean;
-  processingState?: 'idle' | 'processing' | 'complete';
+  onDataLoad: (data: object) => void;
+  onError?: (error: string) => void;
 }
 
-const DEFAULT_URLS = [
-  'https://gist.githubusercontent.com/wyattowalsh/f60976c79f7b904fea81cb9b97dd8c3c/raw/career.jsonld'
-];
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  nodeCount?: number;
+  linkCount?: number;
+}
 
-const FALLBACK_DATA = [
-  {
-    "@type": "Person",
-    "@id": "https://example.com/person/john-doe",
-    "name": "John Doe",
-    "givenName": "John",
-    "familyName": "Doe",
-    "jobTitle": "Senior Software Engineer",
-    "worksFor": {
-      "@type": "Organization",
-      "@id": "https://example.com/org/tech-corp",
-      "name": "Tech Corp",
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "San Francisco",
-        "addressRegion": "CA"
-      }
-    },
-    "knowsAbout": ["JavaScript", "React", "Node.js", "TypeScript"],
-    "alumniOf": {
-      "@type": "EducationalOrganization",
-      "@id": "https://example.com/edu/university-tech",
-      "name": "University of Technology"
-    },
-    "colleague": "https://example.com/person/jane-smith"
-  },
-  {
-    "@type": "Person",
-    "@id": "https://example.com/person/jane-smith",
-    "name": "Jane Smith",
-    "givenName": "Jane",
-    "familyName": "Smith",
-    "jobTitle": "Product Manager",
-    "worksFor": "https://example.com/org/tech-corp",
-    "knowsAbout": ["Product Strategy", "UX Design", "Data Analysis", "Agile"],
-    "colleague": "https://example.com/person/john-doe"
-  },
-  {
-    "@type": "Organization",
-    "@id": "https://example.com/org/tech-corp",
-    "name": "Tech Corp",
-    "foundingDate": "2015",
-    "numberOfEmployees": 150,
-    "industry": "Technology",
-    "employee": [
-      "https://example.com/person/john-doe",
-      "https://example.com/person/jane-smith"
-    ]
-  }
-];
+export function DataLoader({ onDataLoad, onError }: DataLoaderProps) {
+  const [activeTab, setActiveTab] = useState('paste');
+  const [jsonText, setJsonText] = useState('');
+  const [url, setUrl] = useState(DEFAULT_URL);
+  const [isLoading, setIsLoading] = useState(false);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-export function DataLoader({ onDataLoaded, isLoading, processingState }: DataLoaderProps) {
-  const [customUrl, setCustomUrl] = useState('');
-  const [urlError, setUrlError] = useState('');
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const { toast } = useToast();
-
-  const loadData = async (url?: string) => {
-    try {
-      setUrlError('');
-      setLoadingProgress(10);
-      setLoadingMessage('Initializing...');
-      
-      let data = null;
-      
-      if (url) {
-        console.log('Loading data from URL:', url);
-        setLoadingProgress(30);
-        setLoadingMessage('Fetching data from URL...');
-        // Try loading from specific URL
-        data = await JSONLDProcessor.loadFromUrl(url);
-      } else {
-        console.log('Loading default data from:', DEFAULT_URLS);
-        setLoadingProgress(30);
-        setLoadingMessage('Fetching default dataset...');
-        // Try default URLs in sequence
-        let lastError;
-        for (const defaultUrl of DEFAULT_URLS) {
-          try {
-            console.log('Attempting to load from:', defaultUrl);
-            data = await JSONLDProcessor.loadFromUrl(defaultUrl);
-            console.log('Successfully loaded data from:', defaultUrl);
-            break;
-          } catch (error) {
-            console.warn('Failed to load from:', defaultUrl, error);
-            lastError = error;
-            continue;
-          }
-        }
-        
-        // If all URLs fail, use fallback data
-        if (!data) {
-          console.warn('All default URLs failed, using fallback data:', lastError);
-          setLoadingProgress(60);
-          setLoadingMessage('Using fallback data...');
-          data = FALLBACK_DATA;
-          toast({
-            title: "Using fallback data",
-            description: "Could not load from default URLs, using demo data instead",
-            variant: "default",
-          });
-        }
-      }
-      
-      setLoadingProgress(70);
-      setLoadingMessage('Validating data structure...');
-      console.log('Validating loaded data:', data);
-      if (!JSONLDProcessor.validateJSONLD(data)) {
-        throw new Error('Invalid JSON-LD format');
-      }
-
-      setLoadingProgress(85);
-      setLoadingMessage('Processing graph data...');
-      
-      // Add a small delay to show the processing step
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setLoadingProgress(95);
-      setLoadingMessage('Finalizing visualization...');
-      console.log('Calling onDataLoaded with:', data);
-      onDataLoaded(data);
-      
-      setLoadingProgress(100);
-      setLoadingMessage('Data loaded successfully!');
-      
-      // Clear the loading message after a short delay
-      setTimeout(() => {
-        setLoadingMessage('');
-        setLoadingProgress(0);
-      }, 2000);
-      
-      toast({
-        title: "Data loaded successfully",
-        description: `Loaded ${Array.isArray(data) ? data.length : 1} entities`,
-      });
-    } catch (error) {
-      console.error('Error in loadData:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load data';
-      setUrlError(errorMessage);
-      setLoadingProgress(0);
-      setLoadingMessage('');
-      
-      // If loading fails, try fallback data as last resort
-      console.log('Loading failed, using fallback data as last resort');
-      try {
-        setLoadingProgress(50);
-        setLoadingMessage('Switching to fallback data...');
-        if (JSONLDProcessor.validateJSONLD(FALLBACK_DATA)) {
-          onDataLoaded(FALLBACK_DATA);
-          setLoadingProgress(100);
-          setLoadingMessage('Fallback data loaded');
-          
-          // Clear the loading message after a short delay
-          setTimeout(() => {
-            setLoadingMessage('');
-            setLoadingProgress(0);
-          }, 2000);
-          
-          toast({
-            title: "Using fallback data",
-            description: "Original data failed to load, using demo data instead",
-            variant: "default",
-          });
-        } else {
-          throw new Error('Even fallback data is invalid');
-        }
-      } catch (fallbackError) {
-        console.error('Even fallback data failed:', fallbackError);
-        setLoadingProgress(0);
-        setLoadingMessage('');
-        toast({
-          title: "Error loading data",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleLoadDefault = async () => {
-    console.log('handleLoadDefault called');
-    await loadData();
-  };
-
-  const handleLoadCustom = async () => {
-    console.log('handleLoadCustom called with URL:', customUrl);
-    if (!customUrl.trim()) {
-      setUrlError('Please enter a valid URL');
+  // Validate and process JSON-LD
+  const validateAndProcess = useCallback((text: string) => {
+    if (!text.trim()) {
+      setValidation(null);
       return;
     }
 
     try {
-      new URL(customUrl);
-      await loadData(customUrl);
-    } catch {
-      setUrlError('Please enter a valid URL');
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const data = JSON.parse(content);
-        
-        if (!JSONLDProcessor.validateJSONLD(data)) {
-          throw new Error('Invalid JSON-LD format');
-        }
-
-        onDataLoaded(data);
-        toast({
-          title: "File uploaded successfully",
-          description: `Loaded ${Array.isArray(data) ? data.length : 1} entities`,
-        });
-      } catch (error) {
-        toast({
-          title: "Error parsing file",
-          description: "Please ensure the file contains valid JSON-LD data",
-          variant: "destructive",
-        });
+      const data = JSON.parse(text);
+      
+      // Basic JSON-LD validation
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      
+      if (typeof data !== 'object' || data === null) {
+        errors.push('JSON-LD must be an object or array');
       }
+
+      // Check for @context
+      if (Array.isArray(data)) {
+        data.forEach((item, index) => {
+          if (typeof item === 'object' && item !== null && !('@context' in item)) {
+            warnings.push(`Item ${index + 1} missing @context`);
+          }
+        });
+      } else if (typeof data === 'object' && !('@context' in data)) {
+        warnings.push('Missing @context property');
+      }
+
+      // Estimate node/link counts
+      let nodeCount = 0;
+      let linkCount = 0;
+      
+      const countNodes = (obj: unknown): void => {
+        if (typeof obj === 'object' && obj !== null) {
+          const objRecord = obj as Record<string, unknown>;
+          if ('@id' in objRecord || '@type' in objRecord) {
+            nodeCount++;
+          }
+          Object.values(objRecord).forEach(value => {
+            if (Array.isArray(value)) {
+              value.forEach(countNodes);
+              linkCount += value.length;
+            } else if (typeof value === 'object') {
+              countNodes(value);
+              linkCount++;
+            }
+          });
+        }
+      };
+
+      if (Array.isArray(data)) {
+        data.forEach(countNodes);
+      } else {
+        countNodes(data);
+      }
+
+      setValidation({
+        isValid: errors.length === 0,
+        errors,
+        warnings,
+        nodeCount,
+        linkCount
+      });
+
+      if (errors.length === 0) {
+        onDataLoad(data);
+      }
+    } catch (error) {
+      setValidation({
+        isValid: false,
+        errors: ['Invalid JSON syntax: ' + (error instanceof Error ? error.message : 'Unknown error')],
+        warnings: []
+      });
+    }
+  }, [onDataLoad]);
+
+  // Handle URL loading
+  const handleUrlLoad = useCallback(async () => {
+    if (!url.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const text = await response.text();
+      setJsonText(text);
+      setActiveTab('paste');
+      validateAndProcess(text);
+      
+      toast.success('Data loaded successfully', {
+        description: 'JSON-LD data loaded from URL'
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load data';
+      toast.error('Failed to load URL', {
+        description: errorMessage
+      });
+      if (onError) {
+        onError(errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [url, validateAndProcess, onError]);
+
+  useEffect(() => {
+    handleUrlLoad();
+  }, [handleUrlLoad]);
+
+  // Handle file upload
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!file.type.includes('json') && !file.name.endsWith('.jsonld')) {
+      toast.error('Invalid file type', {
+        description: 'Please upload a JSON or JSON-LD file.'
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const text = await file.text();
+      setJsonText(text);
+      setActiveTab('paste');
+      validateAndProcess(text);
+    } catch (error) {
+      toast.error('Failed to read file', {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [validateAndProcess]);
+
+  // Handle drag and drop
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  }, [handleFileUpload]);
+
+  // Handle text change
+  const handleTextChange = useCallback((value: string) => {
+    setJsonText(value);
+    const timeoutId = setTimeout(() => validateAndProcess(value), 500);
+    return () => clearTimeout(timeoutId);
+  }, [validateAndProcess]);
+
+  // Copy to clipboard
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(jsonText);
+      toast.success('Copied to clipboard!');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
+  }, [jsonText]);
+
+  // Load example data
+  const loadExample = useCallback(() => {
+    const exampleData = {
+      "@context": "https://schema.org/",
+      "@type": "Person",
+      "@id": "https://example.com/person/1",
+      "name": "Jane Doe",
+      "jobTitle": "Software Engineer",
+      "email": "jane.doe@example.com",
+      "worksFor": {
+        "@type": "Organization",
+        "@id": "https://example.com/org/1",
+        "name": "Tech Corp",
+        "url": "https://techcorp.example.com"
+      },
+      "knows": [
+        {
+          "@type": "Person",
+          "@id": "https://example.com/person/2",
+          "name": "John Smith"
+        },
+        {
+          "@type": "Person", 
+          "@id": "https://example.com/person/3",
+          "name": "Alice Johnson"
+        }
+      ]
     };
-    reader.readAsText(file);
-  };
+    
+    const text = JSON.stringify(exampleData, null, 2);
+    setJsonText(text);
+    setActiveTab('paste');
+    validateAndProcess(text);
+    toast.success('Example data loaded!');
+  }, [validateAndProcess]);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6"
     >
-      <div className="text-center space-y-4">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-        >
-          <Database className="w-16 h-16 mx-auto text-primary" />
-        </motion.div>
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-blue-500 to-purple-600 bg-clip-text text-transparent">
-            JSON-LD Data Explorer
-          </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Explore, analyze, and visualize your linked data with advanced analytics
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-600/10" />
-          <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5" />
-              Default Dataset
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="relative space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Load the default career dataset to explore advanced graph analytics and visualizations.
-            </p>
-            <div className="space-y-2">
-              <Badge variant="outline" className="text-xs">Career Data</Badge>
-              <Badge variant="outline" className="text-xs">Professional Network</Badge>
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-white/80 to-white/40 dark:from-gray-800/80 dark:to-gray-900/40 backdrop-blur-xl shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-cyan-500/5" />
+        
+        <CardHeader className="relative">
+          <CardTitle className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500">
+              <Upload className="h-5 w-5 text-white" />
             </div>
-            <Button 
-              onClick={handleLoadDefault}
-              disabled={isLoading}
-              className="w-full"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Load Default Data
-                </>
-              )}
-            </Button>
-            {(isLoading || loadingProgress > 0) && (
-              <div className="space-y-2">
-                <Progress value={loadingProgress} className="w-full" />
-                <div className="flex items-center justify-center gap-2">
-                  {loadingProgress < 100 && <Loader2 className="w-3 h-3 animate-spin" />}
-                  <p className="text-xs text-muted-foreground text-center">
-                    {loadingMessage || 'Processing...'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            Load JSON-LD Data
+          </CardTitle>
+          <p className="text-muted-foreground">
+            Import your JSON-LD data from multiple sources to begin exploration.
+          </p>
+        </CardHeader>
 
-        <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-teal-600/10" />
-          <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-2">
-              <Link className="w-5 h-5" />
-              Custom URL
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="relative space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Load JSON-LD data from any accessible URL endpoint.
-            </p>
-            <div className="space-y-3">
-              <Input
-                placeholder="https://example.com/data.jsonld"
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                className={urlError ? 'border-destructive' : ''}
-              />
-              {urlError && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 text-sm text-destructive"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  {urlError}
-                </motion.div>
-              )}
-              <Button 
-                onClick={handleLoadCustom}
-                disabled={isLoading || !customUrl.trim()}
-                className="w-full"
-                variant="outline"
-                size="lg"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <Link className="w-4 h-4 mr-2" />
-                    Load from URL
-                  </>
-                )}
-              </Button>
-              {(isLoading || loadingProgress > 0) && (
-                <div className="space-y-2">
-                  <Progress value={loadingProgress} className="w-full" />
-                  <div className="flex items-center justify-center gap-2">
-                    {loadingProgress < 100 && <Loader2 className="w-3 h-3 animate-spin" />}
-                    <p className="text-xs text-muted-foreground text-center">
-                      {loadingMessage || 'Processing...'}
-                    </p>
+        <CardContent className="relative space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3 bg-background/50 backdrop-blur-sm">
+              <TabsTrigger value="paste" className="flex items-center gap-2">
+                <Code className="h-4 w-4" />
+                Paste
+              </TabsTrigger>
+              <TabsTrigger value="upload" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Upload
+              </TabsTrigger>
+              <TabsTrigger value="url" className="flex items-center gap-2">
+                <Link className="h-4 w-4" />
+                URL
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Paste Tab */}
+            <TabsContent value="paste" className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="json-input">JSON-LD Content</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={loadExample}
+                      className="text-xs"
+                    >
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Load Example
+                    </Button>
+                    {jsonText && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCopy}
+                          className="text-xs"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowPreview(!showPreview)}
+                          className="text-xs"
+                        >
+                          {showPreview ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                          {showPreview ? 'Hide' : 'Preview'}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-600/10" />
-        <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            File Upload
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="relative">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Upload a JSON-LD file from your local machine for analysis.
-            </p>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors">
-              <Upload className="w-8 h-8 mx-auto mb-4 text-muted-foreground" />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                <p className="text-xs text-muted-foreground">JSON-LD files only</p>
+                
+                <Textarea
+                  id="json-input"
+                  placeholder="Paste your JSON-LD content here..."
+                  value={jsonText}
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  className="min-h-[300px] font-mono text-sm"
+                />
               </div>
-              <input
-                type="file"
-                accept=".json,.jsonld"
-                onChange={handleFileUpload}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+            </TabsContent>
+
+            {/* Upload Tab */}
+            <TabsContent value="upload" className="space-y-4">
+              <div
+                className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragActive 
+                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,.jsonld"
+                  onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                  className="hidden"
+                />
+                
+                <motion.div
+                  animate={dragActive ? { scale: 1.05 } : { scale: 1 }}
+                  className="space-y-4"
+                >
+                  <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+                    <Upload className="h-8 w-8 text-white" />
+                  </div>
+                  
+                  <div>
+                    <p className="text-lg font-medium">
+                      {dragActive ? 'Drop your file here' : 'Drag & drop your JSON-LD file'}
+                    </p>
+                    <p className="text-muted-foreground">
+                      or{' '}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-violet-600 hover:text-violet-700 font-medium underline"
+                      >
+                        browse files
+                      </button>
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-center gap-2">
+                    <Badge variant="secondary">.json</Badge>
+                    <Badge variant="secondary">.jsonld</Badge>
+                  </div>
+                </motion.div>
+              </div>
+            </TabsContent>
+
+            {/* URL Tab */}
+            <TabsContent value="url" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="url-input">JSON-LD URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="url-input"
+                    type="url"
+                    placeholder="https://example.com/data.jsonld"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    className="flex-1"
+                    onKeyDown={(e) => e.key === 'Enter' && handleUrlLoad()}
+                  />
+                  <Button 
+                    onClick={handleUrlLoad} 
+                    disabled={isLoading || !url.trim()}
+                    className="bg-gradient-to-r from-violet-500 to-cyan-500 hover:from-violet-600 hover:to-cyan-600"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Default data indicator */}
+                {url === DEFAULT_URL && (
+                  <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/50">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800 dark:text-blue-200">
+                      Default career data will be loaded automatically from GitHub Gist
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {/* Validation Results */}
+          <AnimatePresence>
+            {validation && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-3"
+              >
+                {validation.errors.length > 0 && (
+                  <Alert variant="destructive">
+                    <X className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        {validation.errors.map((error, i) => (
+                          <div key={i}>{error}</div>
+                        ))}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {validation.warnings.length > 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        {validation.warnings.map((warning, i) => (
+                          <div key={i}>{warning}</div>
+                        ))}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {validation.isValid && (
+                  <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800 dark:text-green-200">
+                      <div className="flex items-center gap-4">
+                        <span>Valid JSON-LD data loaded successfully!</span>
+                        {validation.nodeCount !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              {validation.nodeCount} nodes
+                            </Badge>
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                              {validation.linkCount} links
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* JSON Preview */}
+          <AnimatePresence>
+            {showPreview && jsonText && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2"
+              >
+                <Label>Preview</Label>
+                <div className="max-h-60 overflow-auto border rounded-md bg-gray-50 dark:bg-gray-900 p-3">
+                  <pre className="text-xs font-mono text-gray-700 dark:text-gray-300">
+                    {jsonText}
+                  </pre>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </CardContent>
       </Card>
     </motion.div>
